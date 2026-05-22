@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏢 Escape Room — Rupture du Contrat de Travail</title>
+  <meta name="description" content="Jeu pédagogique STMG Droit — Sauvez l'entreprise Durand en résolvant 6 dossiers de rupture de contrat de travail">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===== WELCOME SCREEN ===== -->
+<section id="screen-welcome" class="screen active">
+  <div class="welcome-container">
+    <div class="logo-zone">
+      <span class="building-icon">🏢</span>
+      <p class="welcome-subtitle">STMG Droit — Escape Room Pédagogique</p>
+      <h1 class="welcome-title">Dernière Chance à<br>l'Entreprise Durand</h1>
+    </div>
+
+    <div class="scenario-box">
+      <h3>🚨 Situation d'urgence</h3>
+      <p>
+        Le Directeur des Ressources Humaines a disparu en laissant
+        <strong>6 dossiers de rupture de contrat</strong> mal gérés.
+        L'inspection du travail arrive dans <strong>40 minutes</strong> pour un contrôle surprise.<br><br>
+        Votre mission : analyser chaque dossier, identifier les erreurs juridiques
+        et apporter les bonnes réponses avant qu'il ne soit trop tard.
+        En cas d'échec, l'entreprise risque de <strong>lourdes sanctions</strong>…
+      </p>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-icon">⏱</span>
+        <span class="stat-val">40 min</span>
+        <span class="stat-label">Temps imparti</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">📁</span>
+        <span class="stat-val">6</span>
+        <span class="stat-label">Dossiers</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">💡</span>
+        <span class="stat-val">3</span>
+        <span class="stat-label">Indices</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🏆</span>
+        <span class="stat-val">900</span>
+        <span class="stat-label">Points max</span>
+      </div>
+    </div>
+
+    <div class="team-setup">
+      <label for="team-name">Nom de votre équipe / votre prénom :</label>
+      <input
+        type="text"
+        id="team-name"
+        placeholder="Ex : Équipe Juridique Alpha"
+        maxlength="40"
+        autocomplete="off"
+      >
+    </div>
+
+    <button class="btn-start" id="btn-start">
+      🚀 Démarrer la mission
+    </button>
+  </div>
+</section>
+
+<!-- ===== GAME SCREEN ===== -->
+<section id="screen-game" class="screen">
+
+  <!-- Header sticky -->
+  <header class="game-header">
+    <div class="header-top">
+      <div class="header-team">Équipe : <strong id="header-team"></strong></div>
+      <div id="timer-display" class="timer-display">⏱ 40:00</div>
+      <div id="header-score" class="header-score">0 pts</div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div id="progress-steps" class="progress-steps"></div>
+      <div class="progress-labels">
+        <span id="progress-label">0/6 dossiers résolus</span>
+        <span>Objectif : 600+ pts</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hint bar -->
+  <div class="hint-bar">
+    <span id="hint-count">💡 Indices disponibles : 3</span>
+    <button id="btn-hint" class="btn-hint">Utiliser un indice</button>
+  </div>
+
+  <!-- Enigma navigation -->
+  <nav id="enigma-nav" class="enigma-nav" role="navigation" aria-label="Navigation entre dossiers">
+  </nav>
+
+  <!-- Enigma content -->
+  <main id="enigma-content" class="enigma-content" role="main">
+  </main>
+
+</section>
+
+<!-- ===== RESULTS SCREEN ===== -->
+<section id="screen-results" class="screen">
+  <div class="results-container">
+    <span id="results-icon" class="results-icon">🏆</span>
+    <h1 id="results-title" class="results-title">Résultats</h1>
+    <p id="results-sub" class="results-sub"></p>
+
+    <div class="results-score-big">
+      <span id="results-score-val" class="results-score-val">0</span>
+      <span class="results-score-max">/ 900 pts</span>
+      <p id="results-time" class="results-time"></p>
+    </div>
+
+    <div id="results-breakdown" class="results-breakdown">
+      <h3>Détail par dossier</h3>
+    </div>
+
+    <div id="results-mention" class="results-mention"></div>
+
+    <button id="btn-restart" class="btn-restart">🔄 Rejouer</button>
+  </div>
+</section>
+
+<!-- ===== UNLOCK OVERLAY ===== -->
+<div id="unlock-overlay" class="unlock-overlay" role="dialog" aria-modal="true">
+  <div class="unlock-box">
+    <span id="unlock-icon" class="unlock-icon">🔓</span>
+    <div id="unlock-title" class="unlock-title">Dossier résolu !</div>
+    <div id="unlock-sub" class="unlock-sub"></div>
+    <div id="unlock-score" class="unlock-score"></div>
+    <button id="btn-unlock-continue" class="btn-unlock-continue">Continuer →</button>
+  </div>
+</div>
+
+<script src="js/enigmas.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
