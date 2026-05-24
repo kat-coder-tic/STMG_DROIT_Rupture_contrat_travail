@@ -415,7 +415,7 @@ function validateEnigma(idx) {
     case 'qcm':    isCorrect = validateQCM(eng, idx); break;
     case 'multi':  isCorrect = validateMulti(eng, idx); break;
     case 'ordering': isCorrect = validateOrdering(eng, idx); break;
-    case 'fill':   isCorrect = validateFill(eng, idx); break;
+    case 'fill':   isCorrect = validateFill(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'matching': isCorrect = validateMatching(eng, idx); break;
   }
 
@@ -507,16 +507,22 @@ function validateOrdering(eng, idx) {
 }
 
 /* ===== VALIDATE FILL ===== */
-function validateFill(eng, idx) {
+function validateFill(eng, idx, lastAttempt) {
   let allCorrect = true;
   eng.champs.forEach((champ, i) => {
     const input = $(`fill-${idx}-${i}`);
-    if (!input) return;
+    if (!input || input.disabled) return;
+    input.classList.remove('correct', 'wrong');
     const val = input.value.trim().toLowerCase().replace(/\s+/g, '');
     const valid = champ.reponsesValides.some(r => r.toLowerCase().replace(/\s+/g, '') === val);
-    if (valid) input.classList.add('correct');
-    else { input.classList.add('wrong'); allCorrect = false; }
-    input.disabled = true;
+    if (valid) {
+      input.classList.add('correct');
+      input.disabled = true;
+    } else {
+      input.classList.add('wrong');
+      allCorrect = false;
+      if (lastAttempt) input.disabled = true;
+    }
   });
   return allCorrect;
 }
