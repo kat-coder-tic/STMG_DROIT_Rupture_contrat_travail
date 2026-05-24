@@ -144,12 +144,12 @@ const ENIGMAS = [
         placeholder: "total €",
         unite: "€",
         cle: "total",
-        reponse: "3780",
-        reponsesValides: ["3780", "3 780", "3780€", "3 780 €", "3780,00", "3 780,00"]
+        reponse: "3750",
+        reponsesValides: ["3750", "3 750", "3750€", "3 750 €", "3750,00", "3 750,00"]
       }
     ],
     indice: "Depuis le 27/09/2017 : 1/4 de mois de salaire par année d'ancienneté pour les 10 premières années (et 1/3 au-delà). Il faut calculer séparément les années entières et les mois restants.",
-    explication: "L'indemnité légale = 1/4 de mois par année pour les ≤10 ans. Pour 6 ans : 2400 × 6 × 1/4 = 3 600 €. Pour les 3 mois (0,25 année) : 2400 × 0,25 × 1/4 = 150 €. Total : 3 750 €. Le DRH avait appliqué 1/3 (ancien barème) au lieu de 1/4.",
+    explication: "L'indemnité légale = 1/4 de mois par année pour les ≤ 10 ans. Pour 6 ans entières : 2 400 × 6 × 1/4 = 3 600 €. Pour les 3 mois (= 0,25 année) : 2 400 × 0,25 × 1/4 = 150 €. Total correct : 3 750 €. Le DRH avait appliqué 1/3 (ancien barème pré-2017) au lieu de 1/4.",
     tentativesMax: 3
   },
 
