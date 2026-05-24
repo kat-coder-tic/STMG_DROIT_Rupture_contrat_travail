@@ -418,7 +418,7 @@ function validateEnigma(idx) {
     case 'multi':  isCorrect = validateMulti(eng, idx); break;
     case 'ordering': isCorrect = validateOrdering(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'fill':   isCorrect = validateFill(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
-    case 'matching': isCorrect = validateMatching(eng, idx); break;
+    case 'matching': isCorrect = validateMatching(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
   }
 
   if (isCorrect) {
@@ -533,7 +533,7 @@ function validateFill(eng, idx, lastAttempt) {
 }
 
 /* ===== VALIDATE MATCHING ===== */
-function validateMatching(eng, idx) {
+function validateMatching(eng, idx, lastAttempt) {
   const pairs = state.matchedPairsByEnigma[idx];
   if (pairs.length < eng.gauche.length) {
     showFeedbackMsg(idx, `Associez tous les éléments (${pairs.length}/${eng.gauche.length} fait(s)).`, false);
@@ -541,21 +541,38 @@ function validateMatching(eng, idx) {
     return false;
   }
   let allCorrect = true;
+  const correctPairs = [];
+  const wrongPairs = [];
+
   pairs.forEach(pair => {
     const correct = eng.correspondances[pair.g] === pair.d;
     const leftEl = document.querySelector(`.matching-item[data-side="gauche"][data-idx="${pair.g}"]`);
     const rightEl = document.querySelector(`.matching-item[data-side="droite"][data-idx="${pair.d}"]`);
+    leftEl?.classList.remove('selected');
+    rightEl?.classList.remove('selected');
     if (correct) {
       leftEl?.classList.add('matched-correct');
       rightEl?.classList.add('matched-correct');
+      correctPairs.push(pair);
     } else {
       leftEl?.classList.add('matched-wrong');
       rightEl?.classList.add('matched-wrong');
+      wrongPairs.push(pair);
       allCorrect = false;
     }
-    leftEl?.classList.remove('selected');
-    rightEl?.classList.remove('selected');
   });
+
+  // On a non-final failed attempt: show red briefly, then unlock wrong pairs for retry
+  if (!allCorrect && !lastAttempt) {
+    setTimeout(() => {
+      wrongPairs.forEach(pair => {
+        document.querySelector(`.matching-item[data-side="gauche"][data-idx="${pair.g}"]`)?.classList.remove('matched-wrong');
+        document.querySelector(`.matching-item[data-side="droite"][data-idx="${pair.d}"]`)?.classList.remove('matched-wrong');
+      });
+      state.matchedPairsByEnigma[idx] = correctPairs;
+    }, 1200);
+  }
+
   return allCorrect;
 }
 
