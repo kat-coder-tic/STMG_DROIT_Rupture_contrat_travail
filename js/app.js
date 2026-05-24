@@ -136,6 +136,13 @@ function loadEnigma(idx) {
   const content = $('enigma-content');
   state.matchSel = { gauche: null, droite: null };
 
+  // Reset complet si l'énigme n'est pas résolue (retour après tentatives épuisées)
+  if (!state.solved[idx]) {
+    state.attempts[idx] = 0;
+    state.validated[idx] = false;
+    state.matchedPairsByEnigma[idx] = [];
+  }
+
   renderNav();
   renderProgress();
   updateHintBar();
@@ -437,11 +444,11 @@ function validateEnigma(idx) {
   } else {
     const left = eng.tentativesMax - state.attempts[idx];
     if (left <= 0) {
-      // No more attempts
-      state.scores[idx] = 0;
-      state.validated[idx] = true;
+      // Tentatives épuisées : on montre la correction mais on ne verrouille pas définitivement
+      // L'élève peut revenir sur ce dossier et recommencer depuis le début
       showFeedback(idx, false, eng, 0, true);
-      lockValidate(idx);
+      const btn = $(`btn-validate-${idx}`);
+      if (btn) btn.disabled = true;
       showNextBtn(idx);
     } else {
       showFeedback(idx, false, eng, 0, false, left);
