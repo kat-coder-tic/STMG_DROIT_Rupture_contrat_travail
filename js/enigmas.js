@@ -228,6 +228,41 @@ const ENIGMAS = [
     indice: "La démission est toujours à l'initiative du salarié. La faute grave prive de préavis et d'indemnités. La rupture conventionnelle requiert un accord mutuel et une homologation.",
     explication: "A → Démission : initiative du salarié, lettre écrite, préavis. B → Rupture conventionnelle : accord mutuel + homologation DREETS. C → Licenciement faute grave : violence au travail = manquement d'une gravité exceptionnelle, préavis et indemnités supprimés. D → Licenciement économique : suppression de poste pour motif économique réel.",
     tentativesMax: 2
+  },
+
+  {
+    id: 7,
+    titre: "La Pochette de Sortie",
+    notion: "Retraite, faute lourde, rupture collective et documents de fin de contrat",
+    icon: "📦",
+    points: 200,
+    document: `
+      <div class="doc-error">ARMOIRE RH — DOSSIERS À CLASSER</div><br>
+      Le service RH retrouve quatre fiches de fin de contrat mélangées.<br>
+      Chaque fiche correspond à une notion précise du chapitre.<br><br>
+      <strong>Fiche A :</strong> un salarié quitte l'entreprise pour liquider ses droits à la retraite.<br><br>
+      <strong>Fiche B :</strong> l'entreprise organise des départs volontaires dans le cadre d'un accord majoritaire avec les syndicats, homologué par l'administration.<br><br>
+      <strong>Fiche C :</strong> un salarié a volontairement saboté un dossier client pour nuire à son employeur.<br><br>
+      <strong>Fiche D :</strong> le contrat est terminé : le salarié doit recevoir plusieurs documents administratifs.
+    `,
+    mission: "Associez chaque fiche à la notion ou à l'obligation juridique correspondante.",
+    type: "matching",
+    gauche: [
+      "Fiche A — départ lié à l'âge du salarié",
+      "Fiche B — départs volontaires négociés collectivement",
+      "Fiche C — volonté de nuire à l'employeur",
+      "Fiche D — documents remis à la fin du contrat"
+    ],
+    droite: [
+      "Faute lourde : elle suppose l'intention de nuire et peut engager la responsabilité du salarié",
+      "Dernier bulletin de salaire, certificat de travail, attestation employeur et reçu pour solde de tout compte",
+      "Départ à la retraite : rupture à l'initiative du salarié",
+      "Rupture conventionnelle collective : accord majoritaire homologué par la DREETS (ex-DIRECCTE)"
+    ],
+    correspondances: [2, 3, 0, 1],
+    indice: "Repérez d'abord l'initiative de la rupture : salarié, employeur, accord collectif ou simple obligation administrative.",
+    explication: "A → Départ à la retraite : il s'agit d'une rupture à l'initiative du salarié. B → Rupture conventionnelle collective : elle repose sur un accord majoritaire avec les syndicats et une homologation administrative par la DREETS (ex-DIRECCTE). C → Faute lourde : elle suppose une intention de nuire à l'employeur et peut engager la responsabilité du salarié. D → Documents de fin de contrat : dernier bulletin de salaire, certificat de travail, attestation employeur et reçu pour solde de tout compte.",
+    tentativesMax: 2
   }
 ];
 
@@ -236,3 +271,211 @@ const SCORING = {
   malusIndice: 20,      // pénalité par indice utilisé
   malusEssai: 15,       // pénalité par essai supplémentaire
 };
+
+const LEVEL2_ENIGMAS = [
+  {
+    id: 1,
+    titre: "Le salarié fantôme",
+    notion: "Abandon de poste et présomption de démission",
+    icon: "👻",
+    points: 180,
+    document: `
+      <div class="doc-error">BOÎTE MAIL RH — ABSENCE NON JUSTIFIÉE</div><br>
+      <strong>Salarié :</strong> M. Morel, CDI<br>
+      <strong>Situation :</strong> absent depuis 12 jours sans justificatif transmis.<br><br>
+      <strong>Mail du manager :</strong><br>
+      « Il ne vient plus. On le note démissionnaire aujourd'hui et on clôture le dossier. »<br><br>
+      <span class="doc-highlight">Pièces trouvées :</span><br>
+      → badge inactif depuis le 8 mai<br>
+      → aucun arrêt de travail reçu<br>
+      → <span class="doc-error">aucune mise en demeure envoyée</span>
+    `,
+    mission: "Le service RH veut qualifier immédiatement la situation de démission. Remettez la procédure dans l'ordre pour éviter une rupture irrégulière.",
+    type: "ordering",
+    items: [
+      "Constater l'absence injustifiée du salarié",
+      "Adresser une mise en demeure écrite de justifier l'absence ou de reprendre le poste",
+      "Laisser au salarié un délai de réponse d'au moins 15 jours calendaires",
+      "Tirer les conséquences de l'absence de réponse ou de reprise : présomption de démission"
+    ],
+    ordre: [0, 1, 2, 3],
+    indice: "L'employeur ne peut pas présumer la démission sans mise en demeure écrite. Le délai laissé au salarié ne peut pas être inférieur à 15 jours calendaires.",
+    explication: "L'abandon de poste ne devient pas automatiquement une démission. L'employeur doit d'abord demander par écrit au salarié de justifier son absence ou de reprendre son poste, en l'informant des conséquences. Le délai de réponse doit être d'au moins 15 jours calendaires. Sans cette procédure, la rupture peut être contestée.",
+    tentativesMax: 2
+  },
+  {
+    id: 2,
+    titre: "Télétravail sous tension",
+    notion: "Télétravail, contrôle et droit à la déconnexion",
+    icon: "💻",
+    points: 160,
+    document: `
+      <div class="doc-error">INTERFACE TEAMS — SIGNALEMENT MANAGER</div><br>
+      <strong>Salariée :</strong> Mme Lenoir, télétravail 3 jours/semaine<br><br>
+      <strong>Messages du manager :</strong><br>
+      → « Caméra obligatoire toute la journée. »<br>
+      → « Réponds à mes messages à 22h, c'est urgent. »<br>
+      → « Ton refus suffit pour rompre ton contrat. »<br><br>
+      <em>Le règlement interne mentionne seulement des réunions en visioconférence sur les plages horaires habituelles.</em>
+    `,
+    mission: "Identifiez les affirmations juridiquement contestables dans ce dossier de télétravail.",
+    type: "multi",
+    question: "Cochez les affirmations fausses ou excessives :",
+    options: [
+      { texte: "L'employeur peut imposer une webcam allumée toute la journée sans justification proportionnée." },
+      { texte: "Le salarié doit répondre aux messages professionnels à 22h en dehors de ses horaires habituels." },
+      { texte: "Le télétravail supprime le pouvoir de direction de l'employeur." },
+      { texte: "Un refus ponctuel d'allumer sa caméra suffit automatiquement à rompre le contrat." }
+    ],
+    reponses: [0, 1, 2, 3],
+    indice: "Le contrôle de l'activité doit rester justifié et proportionné. Le salarié conserve ses droits, notamment au repos et à la déconnexion.",
+    explication: "Toutes les propositions sont excessives. Le télétravail n'efface pas le pouvoir de direction, mais les contrôles doivent être proportionnés et compatibles avec les libertés individuelles. Le salarié n'a pas à répondre en permanence hors temps de travail. Une sanction éventuelle doit être justifiée, proportionnée et respecter la procédure disciplinaire.",
+    tentativesMax: 2
+  },
+  {
+    id: 3,
+    titre: "L'apprenti disparu",
+    notion: "Rupture du contrat d'apprentissage",
+    icon: "🎓",
+    points: 180,
+    document: `
+      <div class="doc-error">ESCAPE DOSSIER — CONTRAT D'APPRENTISSAGE</div><br>
+      <strong>Apprenti :</strong> Sami, 17 ans<br>
+      <strong>Conflit :</strong> altercation répétée avec son tuteur.<br><br>
+      <strong>Phrase du directeur :</strong><br>
+      « Un apprenti ne peut jamais rompre son contrat, il doit rester jusqu'au bout. »<br><br>
+      <span class="doc-highlight">Documents retrouvés :</span><br>
+      contrat, échanges de mails, témoignages, note du CFA.
+    `,
+    mission: "Associez chaque situation à la bonne possibilité de rupture du contrat d'apprentissage.",
+    type: "matching",
+    gauche: [
+      "Rupture pendant les 45 premiers jours de formation pratique en entreprise",
+      "Les deux parties sont d'accord pour arrêter le contrat",
+      "L'employeur invoque une faute grave de l'apprenti",
+      "L'apprenti veut rompre après la période initiale, à la suite d'un conflit"
+    ],
+    droite: [
+      "Rupture possible après saisine du médiateur et information de l'employeur",
+      "Rupture unilatérale possible pendant la période initiale",
+      "Rupture d'un commun accord formalisée par écrit",
+      "Rupture possible par l'employeur en respectant la procédure applicable"
+    ],
+    correspondances: [1, 2, 3, 0],
+    indice: "Le contrat d'apprentissage peut être rompu dans plusieurs cas : période initiale, accord commun, faute grave, ou démarche encadrée de l'apprenti après médiation.",
+    explication: "Le directeur a tort : un contrat d'apprentissage peut être rompu dans des cas prévus. Pendant les 45 premiers jours de formation pratique, la rupture est plus simple. Ensuite, elle peut notamment intervenir par accord commun, par l'employeur dans certains cas graves, ou à l'initiative de l'apprenti après saisine du médiateur.",
+    tentativesMax: 2
+  },
+  {
+    id: 4,
+    titre: "L'algorithme RH",
+    notion: "IA, libertés et droit du travail",
+    icon: "🤖",
+    points: 220,
+    document: `
+      <div class="doc-error">TABLEAU DE BORD IA RH — MODE AUTOMATIQUE</div><br>
+      <strong>Outil :</strong> ALGO-RH 4.2<br><br>
+      <strong>Actions détectées :</strong><br>
+      → notation automatique des salariés<br>
+      → surveillance d'activité continue<br>
+      → proposition de licenciement sans contrôle humain<br>
+      → statistiques défavorables à certains profils<br><br>
+      <em>Un salarié conteste son licenciement : il n'a jamais obtenu d'explication humaine sur la décision.</em>
+    `,
+    mission: "Désactivez l'algorithme RH en identifiant les trois risques juridiques principaux.",
+    type: "multi",
+    question: "Quels problèmes doivent être retenus ?",
+    options: [
+      { texte: "Risque de discrimination si les décisions défavorisent certains profils sans justification objective." },
+      { texte: "Absence de contrôle humain sur une décision qui produit un effet important pour le salarié." },
+      { texte: "Atteinte possible aux libertés individuelles en cas de surveillance excessive ou permanente." },
+      { texte: "Une IA peut toujours licencier seule si elle donne une note chiffrée." }
+    ],
+    reponses: [0, 1, 2],
+    indice: "Cherchez les mots-clés : discrimination, contrôle humain, libertés individuelles, information des salariés et rôle des représentants du personnel.",
+    explication: "Une décision importante ne doit pas être abandonnée à un système automatisé sans garanties. Les salariés doivent pouvoir comprendre et contester une décision significative, demander une intervention humaine, et être protégés contre les discriminations et les surveillances disproportionnées. Le CSE peut aussi avoir un rôle d'information/consultation sur les outils de contrôle de l'activité.",
+    tentativesMax: 2
+  }
+];
+
+const LEVELS = [
+  {
+    titre: "Niveau 1 — Rupture du contrat de travail",
+    label: "Niveau 1",
+    resultTitle: "Niveau 1 terminé",
+    enigmas: ENIGMAS
+  },
+  {
+    titre: "Niveau 2 — Nouvelles formes de rupture et transformations du travail",
+    label: "Niveau 2",
+    resultTitle: "Niveau 2 terminé",
+    enigmas: LEVEL2_ENIGMAS
+  },
+  {
+    titre: "Mission finale — Mot croisé juridique",
+    label: "Mission finale",
+    resultTitle: "Mission finale réussie",
+    enigmas: [
+      {
+        id: 1,
+        titre: "Le mot croisé du droit social",
+        notion: "Notions juridiques à retenir",
+        icon: "🧩",
+        points: 300,
+        document: `
+          <div class="doc-error">SALLE DES ARCHIVES — VERROU FINAL</div><br>
+          Les deux niveaux sont terminés. Pour fermer définitivement le dossier de l'entreprise Durand,
+          complétez la grille avec les notions essentielles de la rupture du contrat de travail.<br><br>
+          <span class="doc-highlight">Objectif :</span> retrouver les mots-clés vus dans les missions :
+          procédure, rupture, contrôle administratif, télétravail, apprentissage et IA.
+        `,
+        mission: "Complétez le mot croisé avec les notions juridiques à retenir. Les réponses sont à saisir sans accent.",
+        type: "crossword",
+        rows: 15,
+        cols: 15,
+        words: [
+          { numero: 1, reponse: "RECLASSEMENT", row: 7, col: 1, dir: "H", indice: "Recherche d'un autre poste compatible avant certains licenciements." },
+          { numero: 2, reponse: "HOMOLOGATION", row: 3, col: 4, dir: "V", indice: "Validation administrative obligatoire d'une rupture conventionnelle." },
+          { numero: 3, reponse: "TELETRAVAIL", row: 4, col: 8, dir: "V", indice: "Organisation du travail à distance, encadrée par des règles et des plages horaires." },
+          { numero: 4, reponse: "APPRENTI", row: 7, col: 5, dir: "V", indice: "Jeune salarié formé en alternance dans une entreprise et un CFA." },
+          { numero: 5, reponse: "DEMISSION", row: 3, col: 7, dir: "V", indice: "Rupture du CDI à l'initiative claire et non équivoque du salarié." },
+          { numero: 6, reponse: "DREETS", row: 3, col: 7, dir: "H", indice: "Administration compétente notamment pour l'homologation des ruptures conventionnelles." },
+          { numero: 7, reponse: "PREAVIS", row: 5, col: 10, dir: "V", indice: "Période travaillée ou indemnisée entre l'annonce de la rupture et le départ effectif." },
+          { numero: 8, reponse: "FAUTE", row: 11, col: 1, dir: "H", indice: "Manquement du salarié pouvant justifier une sanction ou un licenciement." },
+          { numero: 9, reponse: "CSE", row: 6, col: 6, dir: "V", indice: "Instance représentative consultée dans plusieurs procédures collectives." },
+          { numero: 10, reponse: "IA", row: 6, col: 5, dir: "V", indice: "Outil numérique qui ne doit pas décider seul d'une rupture produisant des effets importants." }
+        ],
+        indice: "Commencez par les mots longs : reclassement, homologation, télétravail. Les croisements donnent ensuite les mots courts.",
+        explication: "Les notions clés à retenir : reclassement, homologation, télétravail, apprenti, démission, DREETS, préavis, faute, CSE et IA. Elles résument les principales garanties : procédure écrite, contrôle administratif ou humain, information du salarié et respect des libertés fondamentales.",
+        tentativesMax: 3
+      }
+    ]
+  }
+];
+
+const GLOSSARY = [
+  { terme: "Abandon de poste", definition: "Absence injustifiée du salarié à son poste. Elle peut conduire à une sanction ou, sous conditions, à une présomption de démission." },
+  { terme: "Cause réelle et sérieuse", definition: "Motif objectif, exact et suffisamment important permettant de justifier un licenciement." },
+  { terme: "CSE", definition: "Comité social et économique, instance représentative du personnel informée ou consultée dans certaines procédures." },
+  { terme: "Démission", definition: "Rupture du contrat à l'initiative du salarié, exprimée de manière claire et non équivoque." },
+  { terme: "Départ à la retraite", definition: "Rupture du CDI à l'initiative du salarié qui quitte l'entreprise pour faire valoir ses droits à la retraite." },
+  { terme: "Dernier bulletin de salaire", definition: "Document remis à la fin du contrat indiquant la dernière rémunération et les sommes versées au salarié." },
+  { terme: "Dommages-intérêts", definition: "Somme pouvant être versée pour réparer un préjudice, par exemple en cas de licenciement abusif ou de préavis non respecté." },
+  { terme: "DREETS", definition: "Administration du travail, anciennement DIRECCTE, compétente notamment pour l'homologation des ruptures conventionnelles." },
+  { terme: "Faute grave", definition: "Faute rendant impossible le maintien du salarié dans l'entreprise, même pendant le préavis." },
+  { terme: "Faute lourde", definition: "Faute d'une particulière gravité commise avec l'intention de nuire à l'employeur ou à l'entreprise." },
+  { terme: "Homologation", definition: "Validation administrative nécessaire pour rendre une rupture conventionnelle effective." },
+  { terme: "Indemnité de licenciement", definition: "Somme due au salarié licencié lorsqu'il remplit les conditions légales, sauf exceptions comme la faute grave." },
+  { terme: "Mise en demeure", definition: "Demande écrite adressée au salarié pour qu'il justifie son absence ou reprenne son poste dans un délai fixé." },
+  { terme: "Préavis", definition: "Délai entre la notification de la rupture et la fin effective du contrat." },
+  { terme: "Présomption de démission", definition: "Mécanisme permettant, sous conditions strictes, de considérer un abandon de poste comme une démission." },
+  { terme: "Reclassement", definition: "Recherche d'un poste disponible et compatible avant certains licenciements, notamment économiques." },
+  { terme: "Certificat de travail", definition: "Document remis au salarié à la fin du contrat attestant notamment de son emploi et de ses dates de présence." },
+  { terme: "Attestation employeur", definition: "Document destiné à France Travail permettant au salarié de faire valoir ses droits éventuels à l'assurance chômage." },
+  { terme: "Reçu pour solde de tout compte", definition: "Document qui récapitule les sommes versées au salarié lors de la rupture du contrat." },
+  { terme: "Rupture conventionnelle", definition: "Rupture du CDI d'un commun accord entre employeur et salarié, avec délai de rétractation et homologation." },
+  { terme: "Rupture conventionnelle collective", definition: "Dispositif collectif de départs volontaires fondé sur un accord majoritaire avec les syndicats et une homologation administrative." },
+  { terme: "Télétravail", definition: "Organisation dans laquelle le salarié travaille hors des locaux de l'entreprise grâce aux outils numériques." },
+  { terme: "Droit à la déconnexion", definition: "Droit de ne pas être sollicité professionnellement en permanence hors temps de travail." },
+  { terme: "Décision automatisée", definition: "Décision prise par un système informatique ou une IA ; elle doit respecter les droits du salarié et permettre un contrôle humain lorsqu'elle produit des effets importants." }
+];

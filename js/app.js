@@ -4,19 +4,21 @@ const GAME_DURATION = 40 * 60; // 40 minutes en secondes
 
 const state = {
   teamName: '',
+  levelIndex: 0,
   timerInterval: null,
   timeLeft: GAME_DURATION,
   currentEnigma: 0,
-  solved: Array(6).fill(false),
-  scores: Array(6).fill(0),
-  hints: Array(6).fill(false),
+  solved: [],
+  scores: [],
+  hints: [],
   hintsUsed: 0,
   hintsMax: 3,
-  attempts: Array(6).fill(0),
+  attempts: [],
   dragSrc: null,
   matchSel: { gauche: null, droite: null },
-  matchedPairsByEnigma: Array(6).fill(null).map(() => []),
-  validated: Array(6).fill(false),
+  matchedPairsByEnigma: [],
+  validated: [],
+  exhausted: [],
   startTime: null,
 };
 
@@ -35,6 +37,58 @@ function showScreen(id) {
   $(id).classList.add('active');
 }
 
+function getCurrentLevel() {
+  return LEVELS[state.levelIndex];
+}
+
+function getCurrentEnigmas() {
+  return getCurrentLevel().enigmas;
+}
+
+function getEnigmaCount() {
+  return getCurrentEnigmas().length;
+}
+
+function getMaxPoints() {
+  return getCurrentEnigmas().reduce((total, enigma) => total + enigma.points, 0);
+}
+
+function renderStaticScoreLabels() {
+  const maxPts = getMaxPoints();
+  const objective = Math.ceil((maxPts * 0.6) / 10) * 10;
+  const statMax = $('stat-max-points');
+  const progressObjective = $('progress-objective');
+  const resultsMax = $('results-score-max');
+  if (statMax) statMax.textContent = maxPts;
+  if (progressObjective) progressObjective.textContent = `Objectif : ${objective}+ pts`;
+  if (resultsMax) resultsMax.textContent = `/ ${maxPts} pts`;
+}
+
+function normalizeAnswer(value) {
+  return value
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z]/g, '');
+}
+
+function resetLevelState() {
+  const count = getEnigmaCount();
+  state.timeLeft = GAME_DURATION;
+  state.currentEnigma = 0;
+  state.solved = Array(count).fill(false);
+  state.scores = Array(count).fill(0);
+  state.hints = Array(count).fill(false);
+  state.hintsUsed = 0;
+  state.attempts = Array(count).fill(0);
+  state.validated = Array(count).fill(false);
+  state.matchSel = { gauche: null, droite: null };
+  state.matchedPairsByEnigma = Array(count).fill(null).map(() => []);
+  state.exhausted = Array(count).fill(false);
+  state.startTime = Date.now();
+}
+
 /* ===== WELCOME ===== */
 $('btn-start').addEventListener('click', () => {
   const nameInput = $('team-name');
@@ -49,20 +103,13 @@ $('team-name').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-
 
 /* ===== START GAME ===== */
 function startGame() {
-  state.timeLeft = GAME_DURATION;
-  state.currentEnigma = 0;
-  state.solved = Array(6).fill(false);
-  state.scores = Array(6).fill(0);
-  state.hints = Array(6).fill(false);
-  state.hintsUsed = 0;
-  state.attempts = Array(6).fill(0);
-  state.validated = Array(6).fill(false);
-  state.matchSel = { gauche: null, droite: null };
-  state.matchedPairsByEnigma = Array(6).fill(null).map(() => []);
-  state.startTime = Date.now();
+  state.levelIndex = 0;
+  resetLevelState();
 
   showScreen('screen-game');
+  $('header-level').textContent = getCurrentLevel().label;
   $('header-team').textContent = state.teamName;
+  renderStaticScoreLabels();
   updateScore();
   renderNav();
   loadEnigma(0);
@@ -103,7 +150,7 @@ function updateScore() {
 function renderNav() {
   const nav = $('enigma-nav');
   nav.innerHTML = '';
-  ENIGMAS.forEach((e, i) => {
+  getCurrentEnigmas().forEach((e, i) => {
     const btn = el('button', 'nav-dossier');
     if (i === state.currentEnigma) btn.classList.add('active');
     if (state.solved[i]) btn.classList.add('solved');
@@ -119,28 +166,29 @@ function renderNav() {
 function renderProgress() {
   const container = $('progress-steps');
   container.innerHTML = '';
-  ENIGMAS.forEach((_, i) => {
+  getCurrentEnigmas().forEach((_, i) => {
     const step = el('div', 'progress-step');
     if (state.solved[i]) step.classList.add('done');
     else if (i === state.currentEnigma) step.classList.add('current');
     container.appendChild(step);
   });
   const solved = state.solved.filter(Boolean).length;
-  $('progress-label').textContent = `${solved}/6 dossiers résolus`;
+  $('progress-label').textContent = `${solved}/${getEnigmaCount()} dossiers résolus`;
 }
 
 /* ===== LOAD ENIGMA ===== */
 function loadEnigma(idx) {
   state.currentEnigma = idx;
-  const eng = ENIGMAS[idx];
+  const eng = getCurrentEnigmas()[idx];
   const content = $('enigma-content');
   state.matchSel = { gauche: null, droite: null };
 
-  // Reset complet si l'énigme n'est pas résolue (retour après tentatives épuisées)
-  if (!state.solved[idx]) {
+  // Après épuisement des essais, l'élève peut revenir au dossier et recommencer.
+  if (!state.solved[idx] && state.exhausted[idx]) {
     state.attempts[idx] = 0;
     state.validated[idx] = false;
     state.matchedPairsByEnigma[idx] = [];
+    state.exhausted[idx] = false;
   }
 
   renderNav();
@@ -195,6 +243,7 @@ function loadEnigma(idx) {
     case 'ordering': renderOrdering(eng, idx, answer); break;
     case 'fill':   renderFill(eng, idx, answer); break;
     case 'matching': renderMatching(eng, idx, answer); break;
+    case 'crossword': renderCrossword(eng, idx, answer); break;
   }
   card.appendChild(answer);
 
@@ -210,11 +259,12 @@ function loadEnigma(idx) {
   if (state.validated[idx]) btnVal.disabled = true;
   btnVal.addEventListener('click', () => validateEnigma(idx));
 
-  const btnNext = el('button', 'btn-next', idx < 5 ? 'Dossier suivant →' : '🏁 Terminer');
+  const isLast = idx >= getEnigmaCount() - 1;
+  const btnNext = el('button', 'btn-next', isLast ? '🏁 Terminer' : 'Dossier suivant →');
   btnNext.id = `btn-next-${idx}`;
   if (state.validated[idx]) { btnNext.style.display = 'block'; }
   btnNext.addEventListener('click', () => {
-    if (idx < 5) loadEnigma(idx + 1);
+    if (!isLast) loadEnigma(idx + 1);
     else endGame(true);
   });
 
@@ -382,6 +432,66 @@ function renderMatching(eng, idx, container) {
   container.appendChild(wrap);
 }
 
+/* ===== CROSSWORD ===== */
+function buildCrosswordCells(eng) {
+  const cells = new Map();
+  const starts = new Map();
+  eng.words.forEach(word => {
+    const dr = word.dir === 'V' ? 1 : 0;
+    const dc = word.dir === 'H' ? 1 : 0;
+    starts.set(`${word.row}-${word.col}`, word.numero);
+    for (let i = 0; i < word.reponse.length; i++) {
+      const row = word.row + dr * i;
+      const col = word.col + dc * i;
+      cells.set(`${row}-${col}`, word.reponse[i]);
+    }
+  });
+  return { cells, starts };
+}
+
+function renderCrossword(eng, idx, container) {
+  const { cells, starts } = buildCrosswordCells(eng);
+  const wrap = el('div', 'crossword-wrap');
+  const grid = el('div', 'crossword-grid');
+  grid.style.gridTemplateColumns = `repeat(${eng.cols}, minmax(0, 1fr))`;
+
+  for (let row = 0; row < eng.rows; row++) {
+    for (let col = 0; col < eng.cols; col++) {
+      const key = `${row}-${col}`;
+      const cell = el('div', cells.has(key) ? 'crossword-cell' : 'crossword-cell blocked');
+      if (cells.has(key)) {
+        const number = starts.get(key);
+        if (number) cell.appendChild(el('span', 'crossword-num', number));
+        const input = el('input');
+        input.type = 'text';
+        input.maxLength = 1;
+        input.autocomplete = 'off';
+        input.inputMode = 'text';
+        input.id = `cw-${idx}-${row}-${col}`;
+        input.dataset.answer = cells.get(key);
+        input.addEventListener('input', () => {
+          input.value = normalizeAnswer(input.value).slice(0, 1);
+          input.classList.remove('correct', 'wrong');
+        });
+        cell.appendChild(input);
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  const clues = el('div', 'crossword-clues');
+  clues.innerHTML = '<h5>Définitions</h5>';
+  eng.words.forEach(word => {
+    const clue = el('div', 'crossword-clue');
+    clue.innerHTML = `<strong>${word.numero} ${word.dir === 'H' ? 'Horizontal' : 'Vertical'}.</strong> ${word.indice}`;
+    clues.appendChild(clue);
+  });
+
+  wrap.appendChild(grid);
+  wrap.appendChild(clues);
+  container.appendChild(wrap);
+}
+
 function handleMatchClick(item, enigmaIdx, eng) {
   if (state.validated[enigmaIdx]) return;
   const side = item.dataset.side;
@@ -416,7 +526,7 @@ function handleMatchClick(item, enigmaIdx, eng) {
 /* ===== VALIDATE ===== */
 function validateEnigma(idx) {
   if (state.validated[idx]) return;
-  const eng = ENIGMAS[idx];
+  const eng = getCurrentEnigmas()[idx];
   state.attempts[idx]++;
 
   let isCorrect = false;
@@ -426,6 +536,12 @@ function validateEnigma(idx) {
     case 'ordering': isCorrect = validateOrdering(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'fill':   isCorrect = validateFill(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'matching': isCorrect = validateMatching(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
+    case 'crossword': isCorrect = validateCrossword(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
+  }
+
+  if (isCorrect === null) {
+    state.attempts[idx]--;
+    return;
   }
 
   if (isCorrect) {
@@ -437,7 +553,10 @@ function validateEnigma(idx) {
     state.scores[idx] = pts;
     state.solved[idx] = true;
     state.validated[idx] = true;
+    state.exhausted[idx] = false;
     updateScore();
+    renderNav();
+    renderProgress();
     showFeedback(idx, true, eng, pts);
     lockValidate(idx);
     showUnlock(eng, idx, pts);
@@ -446,6 +565,7 @@ function validateEnigma(idx) {
     if (left <= 0) {
       // Tentatives épuisées : on montre la correction mais on ne verrouille pas définitivement
       // L'élève peut revenir sur ce dossier et recommencer depuis le début
+      state.exhausted[idx] = true;
       showFeedback(idx, false, eng, 0, true);
       const btn = $(`btn-validate-${idx}`);
       if (btn) btn.disabled = true;
@@ -473,7 +593,10 @@ function showNextBtn(idx) {
 /* ===== VALIDATE QCM ===== */
 function validateQCM(eng, idx) {
   const selected = document.querySelector(`#enigma-content .qcm-option.selected`);
-  if (!selected) return false;
+  if (!selected) {
+    showFeedbackMsg(idx, 'Sélectionnez une réponse avant de valider.', false);
+    return null;
+  }
   const choice = parseInt(selected.dataset.idx);
   const correct = choice === eng.reponse;
   document.querySelectorAll('#enigma-content .qcm-option').forEach((opt, i) => {
@@ -486,6 +609,10 @@ function validateQCM(eng, idx) {
 /* ===== VALIDATE MULTI ===== */
 function validateMulti(eng, idx) {
   const selected = [...document.querySelectorAll('#enigma-content .multi-check.selected')].map(el => parseInt(el.dataset.idx));
+  if (selected.length === 0) {
+    showFeedbackMsg(idx, 'Cochez au moins une proposition avant de valider.', false);
+    return null;
+  }
   selected.sort();
   const expected = [...eng.reponses].sort();
   const correct = JSON.stringify(selected) === JSON.stringify(expected);
@@ -520,6 +647,15 @@ function validateOrdering(eng, idx, lastAttempt) {
 
 /* ===== VALIDATE FILL ===== */
 function validateFill(eng, idx, lastAttempt) {
+  const missing = eng.champs.some((_, i) => {
+    const input = $(`fill-${idx}-${i}`);
+    return input && !input.disabled && !input.value.trim();
+  });
+  if (missing) {
+    showFeedbackMsg(idx, 'Complétez tous les champs avant de valider.', false);
+    return null;
+  }
+
   let allCorrect = true;
   eng.champs.forEach((champ, i) => {
     const input = $(`fill-${idx}-${i}`);
@@ -544,8 +680,7 @@ function validateMatching(eng, idx, lastAttempt) {
   const pairs = state.matchedPairsByEnigma[idx];
   if (pairs.length < eng.gauche.length) {
     showFeedbackMsg(idx, `Associez tous les éléments (${pairs.length}/${eng.gauche.length} fait(s)).`, false);
-    state.attempts[idx]--;
-    return false;
+    return null;
   }
   let allCorrect = true;
   const correctPairs = [];
@@ -580,6 +715,25 @@ function validateMatching(eng, idx, lastAttempt) {
     }, 1200);
   }
 
+  return allCorrect;
+}
+
+/* ===== VALIDATE CROSSWORD ===== */
+function validateCrossword(eng, idx, lastAttempt) {
+  const inputs = [...document.querySelectorAll(`#enigma-content input[id^="cw-${idx}-"]`)];
+  if (inputs.some(input => !input.value.trim())) {
+    showFeedbackMsg(idx, 'Complétez toutes les cases du mot croisé avant de valider.', false);
+    return null;
+  }
+
+  let allCorrect = true;
+  inputs.forEach(input => {
+    input.classList.remove('correct', 'wrong');
+    const isCorrect = normalizeAnswer(input.value) === input.dataset.answer;
+    input.classList.add(isCorrect ? 'correct' : 'wrong');
+    if (!isCorrect) allCorrect = false;
+    if (isCorrect || lastAttempt) input.disabled = true;
+  });
   return allCorrect;
 }
 
@@ -625,7 +779,7 @@ $('btn-hint').addEventListener('click', () => {
   state.hintsUsed++;
   const box = $(`hint-box-${idx}`);
   if (box) {
-    box.textContent = `💡 Indice : ${ENIGMAS[idx].indice}`;
+    box.textContent = `💡 Indice : ${getCurrentEnigmas()[idx].indice}`;
     box.classList.add('show');
   }
   updateHintBar();
@@ -637,7 +791,7 @@ function showUnlock(eng, idx, pts) {
   $('unlock-icon').textContent = '🔓';
   $('unlock-title').textContent = 'Dossier résolu !';
   $('unlock-sub').textContent = eng.titre;
-  $('unlock-score').textContent = `+${pts} points — ${6 - state.solved.filter(Boolean).length} dossier(s) restant(s)`;
+  $('unlock-score').textContent = `+${pts} points — ${getEnigmaCount() - state.solved.filter(Boolean).length} dossier(s) restant(s)`;
   overlay.classList.add('show');
 }
 
@@ -665,7 +819,7 @@ function endGame(completed) {
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
   const total = state.scores.reduce((a, b) => a + b, 0);
-  const maxPts = ENIGMAS.reduce((a, e) => a + e.points, 0);
+  const maxPts = getMaxPoints();
   const pct = Math.round((total / maxPts) * 100);
 
   // Render results
@@ -676,15 +830,16 @@ function endGame(completed) {
   else { icon = '📛'; titre = 'Dossiers non maîtrisés'; mention = '❌ Échec — L\'entreprise risque de lourdes sanctions !'; }
 
   $('results-icon').textContent = icon;
-  $('results-title').textContent = titre;
-  $('results-sub').textContent = completed ? `Tous les dossiers traités` : `Temps écoulé — ${state.solved.filter(Boolean).length}/6 dossiers résolus`;
+  $('results-title').textContent = completed ? getCurrentLevel().resultTitle : titre;
+  $('results-sub').textContent = completed ? `Tous les dossiers du ${getCurrentLevel().label.toLowerCase()} sont traités` : `Temps écoulé — ${state.solved.filter(Boolean).length}/${getEnigmaCount()} dossiers résolus`;
   $('results-score-val').textContent = total;
+  $('results-score-max').textContent = `/ ${maxPts} pts`;
   $('results-time').textContent = `Temps utilisé : ${mins}m ${secs.toString().padStart(2,'0')}s`;
   $('results-mention').textContent = mention;
 
   const breakdown = $('results-breakdown');
   breakdown.innerHTML = '<h3>Détail par dossier</h3>';
-  ENIGMAS.forEach((eng, i) => {
+  getCurrentEnigmas().forEach((eng, i) => {
     const row = el('div', 'result-row');
     row.innerHTML = `<span class="result-status">${state.solved[i] ? '✅' : '❌'}</span>
       <span class="result-name">${eng.titre}</span>
@@ -693,11 +848,63 @@ function endGame(completed) {
   });
 
   showScreen('screen-results');
+  const nextLevelBtn = $('btn-next-level');
+  if (nextLevelBtn) {
+    const nextLevel = LEVELS[state.levelIndex + 1];
+    const allSolved = state.solved.every(Boolean);
+    nextLevelBtn.style.display = completed && allSolved && nextLevel ? 'block' : 'none';
+    if (nextLevel) {
+      nextLevelBtn.textContent = nextLevel.label === 'Mission finale' ? '🧩 Débloquer la mission finale' : `🔓 Débloquer ${nextLevel.label.toLowerCase()}`;
+    }
+  }
 }
 
+$('btn-next-level').addEventListener('click', () => {
+  if (state.levelIndex >= LEVELS.length - 1) return;
+  state.levelIndex++;
+  resetLevelState();
+  showScreen('screen-game');
+  $('header-level').textContent = getCurrentLevel().label;
+  renderStaticScoreLabels();
+  updateScore();
+  renderNav();
+  loadEnigma(0);
+  startTimer();
+});
+
 $('btn-restart').addEventListener('click', () => {
+  state.levelIndex = 0;
+  renderStaticScoreLabels();
   showScreen('screen-welcome');
 });
 
+/* ===== GLOSSARY ===== */
+function renderGlossary() {
+  const list = $('glossary-list');
+  if (!list) return;
+  list.innerHTML = '';
+  GLOSSARY.forEach(item => {
+    const entry = el('div', 'glossary-entry');
+    entry.innerHTML = `<h4>${item.terme}</h4><p>${item.definition}</p>`;
+    list.appendChild(entry);
+  });
+}
+
+$('btn-glossary').addEventListener('click', () => {
+  renderGlossary();
+  $('glossary-modal').classList.add('show');
+});
+
+$('btn-glossary-close').addEventListener('click', () => {
+  $('glossary-modal').classList.remove('show');
+});
+
+$('glossary-modal').addEventListener('click', event => {
+  if (event.target === $('glossary-modal')) {
+    $('glossary-modal').classList.remove('show');
+  }
+});
+
 /* ===== INIT ===== */
+renderStaticScoreLabels();
 renderProgress();
