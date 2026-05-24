@@ -282,6 +282,8 @@ function renderOrdering(eng, idx, container) {
       state.dragSrc = div;
       div.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
+      // Clear correct/wrong colours so the user gets a fresh visual slate
+      list.querySelectorAll('.ordering-item').forEach(el => el.classList.remove('correct', 'wrong'));
     });
     div.addEventListener('dragend', () => {
       div.classList.remove('dragging');
@@ -414,7 +416,7 @@ function validateEnigma(idx) {
   switch (eng.type) {
     case 'qcm':    isCorrect = validateQCM(eng, idx); break;
     case 'multi':  isCorrect = validateMulti(eng, idx); break;
-    case 'ordering': isCorrect = validateOrdering(eng, idx); break;
+    case 'ordering': isCorrect = validateOrdering(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'fill':   isCorrect = validateFill(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'matching': isCorrect = validateMatching(eng, idx); break;
   }
@@ -490,18 +492,21 @@ function validateMulti(eng, idx) {
 }
 
 /* ===== VALIDATE ORDERING ===== */
-function validateOrdering(eng, idx) {
+function validateOrdering(eng, idx, lastAttempt) {
   const list = $(`ordering-${idx}`);
   if (!list) return false;
   const items = [...list.querySelectorAll('.ordering-item')];
   const userOrder = items.map(el => parseInt(el.dataset.origIdx));
-  const correctOrder = eng.ordre.map(i => eng.items[i]).map((_, i) => eng.ordre[i]);
-  // Compare positions
   const correct = JSON.stringify(userOrder) === JSON.stringify(eng.ordre);
   items.forEach((item, pos) => {
+    item.classList.remove('correct', 'wrong');
     const origIdx = parseInt(item.dataset.origIdx);
-    if (eng.ordre[pos] === origIdx) item.classList.add('correct');
-    else item.classList.add('wrong');
+    if (eng.ordre[pos] === origIdx) {
+      item.classList.add('correct');
+    } else {
+      item.classList.add('wrong');
+    }
+    if (correct || lastAttempt) item.draggable = false;
   });
   return correct;
 }
