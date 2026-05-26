@@ -862,6 +862,162 @@ body {
 
 .attempts-info { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ===== MULTISTEP ===== */
+.ms-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  margin: 16px 0 24px;
+  padding: 12px 0;
+}
+
+.ms-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-dot-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-light);
+  transition: all 0.3s;
+}
+
+.ms-dot-label {
+  font-size: 11px;
+  color: var(--text-light);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.ms-dot.active .ms-dot-circle {
+  background: var(--primary-light);
+  border-color: var(--primary-light);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.15);
+}
+.ms-dot.active .ms-dot-label { color: var(--primary-light); font-weight: 600; }
+
+.ms-dot.done .ms-dot-circle {
+  background: var(--secondary);
+  border-color: var(--secondary);
+  color: white;
+  font-size: 0;
+}
+.ms-dot.done .ms-dot-circle::after { content: '✓'; font-size: 16px; }
+.ms-dot.done .ms-dot-label { color: var(--secondary); font-weight: 600; }
+
+.ms-dot.failed .ms-dot-circle {
+  background: var(--error);
+  border-color: var(--error);
+  color: white;
+  font-size: 0;
+}
+.ms-dot.failed .ms-dot-circle::after { content: '✗'; font-size: 16px; }
+.ms-dot.failed .ms-dot-label { color: var(--error); }
+
+.ms-connector {
+  width: 40px;
+  height: 2px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin-top: 17px;
+}
+
+.ms-step {
+  animation: fadeIn 0.3s ease;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #f8fafc;
+}
+
+.ms-step-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--primary);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #dbeafe;
+}
+
+.ms-step-feedback {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  display: none;
+}
+.ms-step-feedback.success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; display: block; }
+.ms-step-feedback.error   { background: #fff1f2; border: 1px solid #fca5a5; color: #991b1b; display: block; }
+
+.btn-step-validate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: background 0.2s;
+}
+.btn-step-validate:hover:not(:disabled) { background: var(--primary-light); }
+.btn-step-validate:disabled { background: var(--border); color: var(--text-light); cursor: not-allowed; }
+
+/* Vrai / Faux */
+.vf-question {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.vf-question:last-child { border-bottom: none; }
+
+.vf-q-text { flex: 1; font-size: 14px; color: var(--text); line-height: 1.4; }
+
+.vf-opts { display: flex; gap: 6px; flex-shrink: 0; }
+
+.btn-vf {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 2px solid var(--border);
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-light);
+}
+.btn-vf:hover:not(:disabled):not(.selected):not(.correct):not(.wrong) {
+  border-color: var(--primary-light);
+  color: var(--primary-light);
+}
+.btn-vf.selected { background: #dbeafe; border-color: var(--primary-light); color: var(--primary); }
+.btn-vf.correct  { background: #f0fdf4; border-color: var(--secondary); color: #166534; }
+.btn-vf.wrong    { background: #fff1f2; border-color: var(--error); color: #991b1b; }
+.btn-vf:disabled { cursor: not-allowed; opacity: 0.75; }
+
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .header-top { gap: 8px; flex-wrap: wrap; }
@@ -872,4 +1028,6 @@ body {
   .glossary-list { grid-template-columns: 1fr; }
   .action-row { flex-direction: column; }
   .btn-validate, .btn-next { flex: none; }
+  .vf-question { flex-direction: column; align-items: flex-start; }
+  .ms-connector { width: 20px; }
 }

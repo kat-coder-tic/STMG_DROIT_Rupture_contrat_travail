@@ -279,6 +279,8 @@ const LEVEL2_ENIGMAS = [
     notion: "Abandon de poste et présomption de démission",
     icon: "👻",
     points: 180,
+    type: 'multistep',
+    tentativesMax: 2,
     document: `
       <div class="doc-error">BOÎTE MAIL RH — ABSENCE NON JUSTIFIÉE</div><br>
       <strong>Salarié :</strong> M. Morel, CDI<br>
@@ -290,18 +292,56 @@ const LEVEL2_ENIGMAS = [
       → aucun arrêt de travail reçu<br>
       → <span class="doc-error">aucune mise en demeure envoyée</span>
     `,
-    mission: "Le service RH veut qualifier immédiatement la situation de démission. Remettez la procédure dans l'ordre pour éviter une rupture irrégulière.",
-    type: "ordering",
-    items: [
-      "Constater l'absence injustifiée du salarié",
-      "Adresser une mise en demeure écrite de justifier l'absence ou de reprendre le poste",
-      "Laisser au salarié un délai de réponse d'au moins 15 jours calendaires",
-      "Tirer les conséquences de l'absence de réponse ou de reprise : présomption de démission"
-    ],
-    ordre: [0, 1, 2, 3],
-    indice: "L'employeur ne peut pas présumer la démission sans mise en demeure écrite. Le délai laissé au salarié ne peut pas être inférieur à 15 jours calendaires.",
-    explication: "L'abandon de poste ne devient pas automatiquement une démission. L'employeur doit d'abord demander par écrit au salarié de justifier son absence ou de reprendre son poste, en l'informant des conséquences. Le délai de réponse doit être d'au moins 15 jours calendaires. Sans cette procédure, la rupture peut être contestée.",
-    tentativesMax: 2
+    mission: "Analysez la situation de M. Morel en 3 étapes : qualifiez juridiquement la situation, reconstituez la procédure légale, puis vérifiez vos connaissances par des questions vrai/faux.",
+    indice: "L'abandon de poste ne devient pas automatiquement une démission. Une mise en demeure écrite (LRAR) est obligatoire et le délai de réponse ne peut pas être inférieur à 15 jours calendaires.",
+    explication: "L'abandon de poste ne génère pas automatiquement une démission. L'employeur doit adresser une mise en demeure LRAR au salarié lui demandant de justifier son absence ou de reprendre le travail, avec un délai minimum de 15 jours calendaires. Sans réponse ou reprise dans ce délai, la présomption de démission s'applique — mais le salarié peut la contester devant le conseil de prud'hommes.",
+    steps: [
+      {
+        type: 'qcm',
+        titre: "Étape 1 — Qualification juridique",
+        options: [
+          { texte: "Démission : le salarié a clairement manifesté sa volonté de quitter l'entreprise." },
+          { texte: "Abandon de poste : absence injustifiée sans que l'employeur puisse présumer immédiatement la démission." },
+          { texte: "Licenciement pour faute grave : l'employeur peut rompre le contrat sans délai." },
+          { texte: "Congé sans solde : le salarié peut s'absenter librement sans justification." }
+        ],
+        reponse: 1,
+        feedback: {
+          correct: "✅ Correct ! L'absence injustifiée constitue un abandon de poste. L'employeur ne peut pas présumer immédiatement la démission sans suivre la procédure légale.",
+          incorrect: "❌ L'absence injustifiée est un abandon de poste, pas une démission automatique. Une procédure formelle est obligatoire."
+        }
+      },
+      {
+        type: 'ordering',
+        titre: "Étape 2 — Procédure légale",
+        items: [
+          "Constater l'absence injustifiée du salarié",
+          "Adresser une mise en demeure LRAR (lettre recommandée avec accusé de réception)",
+          "Laisser au salarié un délai de réponse d'au moins 15 jours calendaires",
+          "Tirer les conséquences : présomption de démission si absence de réponse ou de reprise"
+        ],
+        ordre: [0, 1, 2, 3],
+        feedback: {
+          correct: "✅ Parfait ! Voici la procédure légale exacte : constat → mise en demeure LRAR → délai 15 jours → présomption de démission.",
+          incorrect: "❌ L'ordre n'est pas respecté. La mise en demeure LRAR précède toujours le délai, lui-même indispensable avant toute présomption."
+        }
+      },
+      {
+        type: 'vf',
+        titre: "Étape 3 — Vrai ou Faux",
+        questions: [
+          { texte: "L'employeur peut qualifier immédiatement un abandon de poste de démission sans autre formalité.", reponse: false },
+          { texte: "La mise en demeure doit être adressée par lettre recommandée avec accusé de réception (LRAR).", reponse: true },
+          { texte: "Le délai laissé au salarié pour répondre est de 5 jours ouvrables.", reponse: false },
+          { texte: "En l'absence de réponse dans le délai imparti, la présomption de démission s'applique.", reponse: true },
+          { texte: "Le salarié peut contester la présomption de démission devant le conseil de prud'hommes.", reponse: true }
+        ],
+        feedback: {
+          correct: "✅ Excellent ! Vous maîtrisez la procédure d'abandon de poste et la présomption de démission.",
+          incorrect: "❌ Certaines réponses sont incorrectes. Relisez attentivement les règles sur la mise en demeure et les délais."
+        }
+      }
+    ]
   },
   {
     id: 2,

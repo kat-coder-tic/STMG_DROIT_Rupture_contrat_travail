@@ -19,6 +19,8 @@ const state = {
   matchedPairsByEnigma: [],
   validated: [],
   exhausted: [],
+  stepResults: [],
+  stepAttempts: [],
   startTime: null,
 };
 
@@ -86,6 +88,8 @@ function resetLevelState() {
   state.matchSel = { gauche: null, droite: null };
   state.matchedPairsByEnigma = Array(count).fill(null).map(() => []);
   state.exhausted = Array(count).fill(false);
+  state.stepResults = Array(count).fill(null).map(() => []);
+  state.stepAttempts = Array(count).fill(null).map(() => []);
   state.startTime = Date.now();
 }
 
@@ -188,6 +192,8 @@ function loadEnigma(idx) {
     state.attempts[idx] = 0;
     state.validated[idx] = false;
     state.matchedPairsByEnigma[idx] = [];
+    state.stepResults[idx] = [];
+    state.stepAttempts[idx] = [];
     state.exhausted[idx] = false;
   }
 
@@ -229,9 +235,12 @@ function loadEnigma(idx) {
   // Answer zone
   const answer = el('div', 'answer-zone');
   const attemptsLeft = eng.tentativesMax - state.attempts[idx];
+  const attemptsHtml = eng.type === 'multistep'
+    ? `<span class="badge badge-attempts">⚡ ${eng.steps.length} étapes</span>`
+    : `<span class="badge badge-attempts">⚡ ${attemptsLeft} essai(s) restant(s)</span>`;
   answer.innerHTML = `<h4>✏️ Votre réponse
     <span class="attempts-info">
-      <span class="badge badge-attempts">⚡ ${attemptsLeft} essai(s) restant(s)</span>
+      ${attemptsHtml}
       <span class="badge badge-points">🏆 ${eng.points} pts</span>
     </span>
   </h4>`;
@@ -244,6 +253,7 @@ function loadEnigma(idx) {
     case 'fill':   renderFill(eng, idx, answer); break;
     case 'matching': renderMatching(eng, idx, answer); break;
     case 'crossword': renderCrossword(eng, idx, answer); break;
+    case 'multistep': renderMultistep(eng, idx, answer); break;
   }
   card.appendChild(answer);
 
@@ -256,7 +266,8 @@ function loadEnigma(idx) {
   const actions = el('div', 'action-row');
   const btnVal = el('button', 'btn-validate', '✓ Valider ma réponse');
   btnVal.id = `btn-validate-${idx}`;
-  if (state.validated[idx]) btnVal.disabled = true;
+  if (state.validated[idx] || eng.type === 'multistep') btnVal.disabled = true;
+  if (eng.type === 'multistep') btnVal.style.display = 'none';
   btnVal.addEventListener('click', () => validateEnigma(idx));
 
   const isLast = idx >= getEnigmaCount() - 1;
@@ -521,6 +532,293 @@ function handleMatchClick(item, enigmaIdx, eng) {
     state.matchSel.gauche = null;
     state.matchSel.droite = null;
   }
+}
+
+/* ===== MULTISTEP ===== */
+function renderMultistep(eng, idx, container) {
+  if (!state.stepResults[idx] || state.stepResults[idx].length === 0) {
+    state.stepResults[idx] = Array(eng.steps.length).fill(null);
+    state.stepAttempts[idx] = Array(eng.steps.length).fill(0);
+  }
+
+  // Progress dots
+  const bar = el('div', 'ms-bar');
+  eng.steps.forEach((step, si) => {
+    if (si > 0) bar.appendChild(el('div', 'ms-connector'));
+    const dot = el('div', 'ms-dot');
+    const circle = el('div', 'ms-dot-circle', si + 1);
+    const label = el('div', 'ms-dot-label', `Étape ${si + 1}`);
+    const activeStep = getMsActiveStep(idx, eng);
+    if (state.stepResults[idx][si] === true) dot.classList.add('done');
+    else if (si === activeStep) dot.classList.add('active');
+    dot.appendChild(circle);
+    dot.appendChild(label);
+    bar.appendChild(dot);
+  });
+  container.appendChild(bar);
+
+  // Step panels
+  const activeStep = getMsActiveStep(idx, eng);
+  eng.steps.forEach((step, si) => {
+    const stepDiv = el('div', 'ms-step');
+    stepDiv.id = `ms-step-${idx}-${si}`;
+    if (si > activeStep) stepDiv.style.display = 'none';
+
+    stepDiv.appendChild(el('div', 'ms-step-title', step.titre));
+
+    const body = el('div', 'ms-step-body');
+    body.id = `ms-step-body-${idx}-${si}`;
+    if (step.type === 'qcm')      renderMsQCM(step, idx, si, body);
+    else if (step.type === 'ordering') renderMsOrdering(step, idx, si, body);
+    else if (step.type === 'vf')   renderMsVF(step, idx, si, body);
+    stepDiv.appendChild(body);
+
+    const fb = el('div', 'ms-step-feedback');
+    fb.id = `ms-step-fb-${idx}-${si}`;
+    if (state.stepResults[idx][si] === true) {
+      fb.className = 'ms-step-feedback success';
+      fb.textContent = step.feedback.correct;
+    } else if (isMsStepLocked(idx, si, eng)) {
+      fb.className = 'ms-step-feedback error';
+      fb.textContent = step.feedback.incorrect;
+    }
+    stepDiv.appendChild(fb);
+
+    if (state.stepResults[idx][si] !== true && !isMsStepLocked(idx, si, eng) && si <= activeStep) {
+      const btnVal = el('button', 'btn-step-validate', `✓ Valider l'étape ${si + 1}`);
+      btnVal.id = `ms-btn-val-${idx}-${si}`;
+      btnVal.addEventListener('click', () => validateMsStep(idx, si, eng));
+      stepDiv.appendChild(btnVal);
+    }
+    container.appendChild(stepDiv);
+  });
+}
+
+function getMsActiveStep(enigmaIdx, eng) {
+  for (let i = 0; i < eng.steps.length; i++) {
+    if (state.stepResults[enigmaIdx][i] !== true) return i;
+  }
+  return eng.steps.length;
+}
+
+function isMsStepLocked(enigmaIdx, si, eng) {
+  return state.stepAttempts[enigmaIdx][si] >= eng.tentativesMax
+    && state.stepResults[enigmaIdx][si] !== true;
+}
+
+function renderMsQCM(step, idx, si, container) {
+  const grid = el('div', 'qcm-grid');
+  step.options.forEach((opt, oi) => {
+    const btn = el('div', 'qcm-option');
+    btn.dataset.idx = oi;
+    btn.innerHTML = `<span class="qcm-letter">${String.fromCharCode(65 + oi)}</span><span class="qcm-text">${opt.texte}</span>`;
+    btn.addEventListener('click', () => {
+      if (state.stepResults[idx][si] === true) return;
+      grid.querySelectorAll('.qcm-option').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+    grid.appendChild(btn);
+  });
+  container.appendChild(grid);
+}
+
+function renderMsOrdering(step, idx, si, container) {
+  container.insertAdjacentHTML('beforeend', '<p style="font-size:13px;color:var(--text-light);margin-bottom:10px;">Glissez-déposez les étapes dans le bon ordre :</p>');
+  const list = el('div', 'ordering-list');
+  list.id = `ms-ordering-${idx}-${si}`;
+
+  const shuffled = step.items.map((text, i) => ({ text, origIdx: i }));
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  shuffled.forEach((item, pos) => {
+    const div = el('div', 'ordering-item');
+    div.draggable = true;
+    div.dataset.origIdx = item.origIdx;
+    div.innerHTML = `<span class="order-handle">⠿</span>
+      <span class="order-num">${pos + 1}</span>
+      <span class="order-text">${item.text}</span>`;
+    div.addEventListener('dragstart', e => {
+      state.dragSrc = div;
+      div.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      list.querySelectorAll('.ordering-item').forEach(el => el.classList.remove('correct', 'wrong'));
+    });
+    div.addEventListener('dragend', () => {
+      div.classList.remove('dragging');
+      list.querySelectorAll('.ordering-item').forEach((el, i) => {
+        el.classList.remove('drag-over');
+        el.querySelector('.order-num').textContent = i + 1;
+      });
+    });
+    div.addEventListener('dragover', e => { e.preventDefault(); if (div !== state.dragSrc) div.classList.add('drag-over'); });
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      if (state.dragSrc && div !== state.dragSrc) {
+        const items = [...list.querySelectorAll('.ordering-item')];
+        const srcPos = items.indexOf(state.dragSrc);
+        const dstPos = items.indexOf(div);
+        if (srcPos < dstPos) list.insertBefore(state.dragSrc, div.nextSibling);
+        else list.insertBefore(state.dragSrc, div);
+      }
+    });
+    list.appendChild(div);
+  });
+  container.appendChild(list);
+}
+
+function renderMsVF(step, idx, si, container) {
+  step.questions.forEach((q, qi) => {
+    const row = el('div', 'vf-question');
+    row.id = `vf-q-${idx}-${si}-${qi}`;
+    const text = el('div', 'vf-q-text', q.texte);
+    const opts = el('div', 'vf-opts');
+    ['VRAI', 'FAUX'].forEach(label => {
+      const btn = el('button', 'btn-vf', label);
+      btn.dataset.val = label === 'VRAI' ? 'true' : 'false';
+      btn.addEventListener('click', () => {
+        if (state.stepResults[idx][si] === true) return;
+        opts.querySelectorAll('.btn-vf').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+      opts.appendChild(btn);
+    });
+    row.appendChild(text);
+    row.appendChild(opts);
+    container.appendChild(row);
+  });
+}
+
+function validateMsStep(enigmaIdx, si, eng) {
+  const step = eng.steps[si];
+  state.stepAttempts[enigmaIdx][si]++;
+  const isLast = state.stepAttempts[enigmaIdx][si] >= eng.tentativesMax;
+  let correct = false;
+
+  if (step.type === 'qcm') {
+    const grid = document.querySelector(`#ms-step-body-${enigmaIdx}-${si} .qcm-grid`);
+    const selected = grid?.querySelector('.qcm-option.selected');
+    if (!selected) {
+      state.stepAttempts[enigmaIdx][si]--;
+      showMsStepMsg(enigmaIdx, si, 'Sélectionnez une réponse avant de valider.', false);
+      return;
+    }
+    const choice = parseInt(selected.dataset.idx);
+    correct = choice === step.reponse;
+    grid.querySelectorAll('.qcm-option').forEach((opt, i) => {
+      if (i === step.reponse) opt.classList.add('correct');
+      else if (i === choice && !correct) opt.classList.add('wrong');
+    });
+
+  } else if (step.type === 'ordering') {
+    const list = $(`ms-ordering-${enigmaIdx}-${si}`);
+    if (!list) return;
+    const items = [...list.querySelectorAll('.ordering-item')];
+    const userOrder = items.map(el => parseInt(el.dataset.origIdx));
+    correct = JSON.stringify(userOrder) === JSON.stringify(step.ordre);
+    items.forEach((item, pos) => {
+      item.classList.remove('correct', 'wrong');
+      if (step.ordre[pos] === parseInt(item.dataset.origIdx)) item.classList.add('correct');
+      else item.classList.add('wrong');
+      if (correct || isLast) item.draggable = false;
+    });
+
+  } else if (step.type === 'vf') {
+    const body = $(`ms-step-body-${enigmaIdx}-${si}`);
+    const vfResults = step.questions.map((q, qi) => {
+      const opts = body?.querySelector(`#vf-q-${enigmaIdx}-${si}-${qi} .vf-opts`);
+      const selected = opts?.querySelector('.btn-vf.selected');
+      if (!selected) return null;
+      return { q, opts, isCorrect: selected.dataset.val === String(q.reponse) };
+    });
+    if (vfResults.some(r => r === null)) {
+      state.stepAttempts[enigmaIdx][si]--;
+      showMsStepMsg(enigmaIdx, si, 'Répondez à toutes les questions avant de valider.', false);
+      return;
+    }
+    correct = vfResults.every(r => r.isCorrect);
+    vfResults.forEach(({ q, opts, isCorrect }) => {
+      opts.querySelectorAll('.btn-vf').forEach(btn => {
+        const bval = btn.dataset.val === 'true';
+        if (bval === q.reponse) btn.classList.add('correct');
+        else if (btn.classList.contains('selected') && !isCorrect) btn.classList.add('wrong');
+        if (correct || isLast) btn.disabled = true;
+      });
+    });
+  }
+
+  const fb = $(`ms-step-fb-${enigmaIdx}-${si}`);
+  if (correct) {
+    state.stepResults[enigmaIdx][si] = true;
+    if (fb) { fb.className = 'ms-step-feedback success'; fb.textContent = step.feedback.correct; }
+    const btnVal = $(`ms-btn-val-${enigmaIdx}-${si}`);
+    if (btnVal) btnVal.style.display = 'none';
+    setMsDotState(enigmaIdx, si, 'done');
+
+    if (state.stepResults[enigmaIdx].every(r => r === true)) {
+      completeMultistep(enigmaIdx, eng);
+    } else {
+      const nextSi = si + 1;
+      const nextStep = $(`ms-step-${enigmaIdx}-${nextSi}`);
+      if (nextStep) {
+        nextStep.style.display = 'block';
+        setMsDotState(enigmaIdx, nextSi, 'active');
+      }
+    }
+  } else {
+    const left = eng.tentativesMax - state.stepAttempts[enigmaIdx][si];
+    if (left <= 0) {
+      state.stepResults[enigmaIdx][si] = false;
+      if (fb) { fb.className = 'ms-step-feedback error'; fb.textContent = step.feedback.incorrect; }
+      const btnVal = $(`ms-btn-val-${enigmaIdx}-${si}`);
+      if (btnVal) btnVal.disabled = true;
+      setMsDotState(enigmaIdx, si, 'failed');
+      state.exhausted[enigmaIdx] = true;
+      showFeedback(enigmaIdx, false, eng, 0, true);
+      showNextBtn(enigmaIdx);
+    } else {
+      if (fb) { fb.className = 'ms-step-feedback error'; fb.textContent = `⚠️ Incorrect — ${left} essai(s) restant(s)`; }
+    }
+  }
+}
+
+function setMsDotState(enigmaIdx, si, dotState) {
+  const bar = document.querySelector('#enigma-content .ms-bar');
+  if (!bar) return;
+  const dots = bar.querySelectorAll('.ms-dot');
+  if (dots[si]) {
+    dots[si].classList.remove('active', 'done', 'failed');
+    dots[si].classList.add(dotState);
+  }
+}
+
+function showMsStepMsg(enigmaIdx, si, msg, success) {
+  const fb = $(`ms-step-fb-${enigmaIdx}-${si}`);
+  if (!fb) return;
+  fb.className = `ms-step-feedback ${success ? 'success' : 'error'}`;
+  fb.textContent = msg;
+}
+
+function completeMultistep(enigmaIdx, eng) {
+  const totalAttempts = state.stepAttempts[enigmaIdx].reduce((a, b) => a + b, 0);
+  const extraAttempts = Math.max(0, totalAttempts - eng.steps.length);
+  let pts = eng.points - extraAttempts * SCORING.malusEssai;
+  if (state.hints[enigmaIdx]) pts -= SCORING.malusIndice;
+  pts = Math.max(pts, Math.floor(eng.points * 0.3));
+
+  state.scores[enigmaIdx] = pts;
+  state.solved[enigmaIdx] = true;
+  state.validated[enigmaIdx] = true;
+  state.exhausted[enigmaIdx] = false;
+  updateScore();
+  renderNav();
+  renderProgress();
+  showFeedback(enigmaIdx, true, eng, pts);
+  showNextBtn(enigmaIdx);
+  showUnlock(eng, enigmaIdx, pts);
 }
 
 /* ===== VALIDATE ===== */
@@ -808,7 +1106,8 @@ $('btn-unlock-continue').addEventListener('click', () => {
 
 /* ===== RESTORE VALIDATED STATE ===== */
 function restoreValidatedState(idx) {
-  // Just show next btn — visual restore handled by re-render
+  const eng = getCurrentEnigmas()[idx];
+  showFeedback(idx, true, eng, state.scores[idx]);
   showNextBtn(idx);
 }
 
