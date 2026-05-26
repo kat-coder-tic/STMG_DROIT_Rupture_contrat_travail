@@ -14,7 +14,7 @@
 6. Repérer les irrégularités de procédure susceptibles d'engager la responsabilité de l'employeur
 
 **Niveau :** Terminale STMG — Spécialité Droit  
-**Notions du programme :** Rupture du contrat de travail, procédure de licenciement, indemnités
+**Notions du programme :** Rupture du contrat de travail, procédure de licenciement, indemnités, mutations contemporaines du travail
 
 ---
 
@@ -25,7 +25,9 @@
 | Temps | Activité |
 |-------|----------|
 | 10 min | Présentation du scénario, formation des équipes, rappels de cours |
-| 40 min | Jeu en autonomie (chrono lancé) |
+| 40 min | Niveau 1 en autonomie (chrono lancé) |
+| 30 à 40 min | Niveau 2 optionnel ou séance suivante |
+| 10 à 15 min | Mission finale : mot croisé de révision |
 | 15 min | Debriefing collectif dossier par dossier |
 | 15 min | Synthèse, correction et trace écrite |
 
@@ -61,9 +63,23 @@ Demandez aux élèves de noter ou photographier leurs résultats.
 
 **Tableau de suivi suggéré :**
 
-| Équipe | D1 | D2 | D3 | D4 | D5 | D6 | Total | Temps |
-|--------|----|----|----|----|----|----|-------|-------|
-| ... | /150 | /150 | /200 | /200 | /150 | /250 | /900 | ... |
+| Équipe | D1 | D2 | D3 | D4 | D5 | D6 | D7 | Total | Temps |
+|--------|----|----|----|----|----|----|----|-------|-------|
+| ... | /150 | /150 | /200 | /200 | /150 | /250 | /200 | /1300 | ... |
+
+**Niveau 2 :**
+
+| Équipe | M1 | M2 | M3 | M4 | Total | Temps |
+|--------|----|----|----|----|-------|-------|
+| ... | /180 | /160 | /180 | /220 | /740 | ... |
+
+**Mission finale :**
+
+| Équipe | Mot croisé | Temps |
+|--------|------------|-------|
+| ... | /300 | ... |
+
+Le bouton **Glossaire** placé en haut à droite permet aux élèves de revoir les notions clés pendant l'activité : démission, préavis, faute grave, reclassement, DREETS, CSE, rupture conventionnelle, télétravail, droit à la déconnexion, apprentissage et IA.
 
 ---
 
@@ -139,6 +155,17 @@ L'insuffisance professionnelle EST un motif légal (réponse 4 incorrecte).
 | Mme Garcia (accord mutuel + homologation) | **Rupture conventionnelle** |
 | M. Dubois (violence au travail) | **Licenciement pour faute grave** |
 | Mme Torres (suppression de poste, raison économique) | **Licenciement économique** |
+
+---
+
+### Dossier 7 — La Pochette de Sortie (200 pts)
+
+| Fiche | Notion / obligation |
+|-------|---------------------|
+| Fiche A (départ lié à l'âge du salarié) | **Départ à la retraite** |
+| Fiche B (accord majoritaire homologué) | **Rupture conventionnelle collective** |
+| Fiche C (intention de nuire) | **Faute lourde** |
+| Fiche D (fin du contrat) | **Dernier bulletin de salaire, certificat de travail, attestation employeur, reçu pour solde de tout compte** |
 
 ---
 

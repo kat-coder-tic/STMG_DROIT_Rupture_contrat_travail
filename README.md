@@ -5,7 +5,7 @@
 
 ## 📋 Présentation
 
-Application web interactive de type **Escape Room** destinée aux élèves de **Terminale STMG spécialité Droit**. Les joueurs incarnent des consultants RH devant résoudre 6 dossiers de rupture de contrat de travail en 40 minutes, avant l'arrivée fictive de l'inspection du travail.
+Application web interactive de type **Escape Room** destinée aux élèves de **Terminale STMG spécialité Droit**. Les joueurs incarnent des consultants RH devant résoudre un premier niveau de 7 dossiers de rupture de contrat de travail en 40 minutes, avant de débloquer un second niveau de 4 missions sur les nouvelles situations de travail.
 
 **Notions juridiques couvertes :**
 - Licenciement pour motif personnel / faute grave
@@ -14,6 +14,9 @@ Application web interactive de type **Escape Room** destinée aux élèves de **
 - Calcul des indemnités légales
 - Rupture conventionnelle homologuée
 - Types de rupture (démission, faute grave, licenciement économique, rupture conventionnelle)
+- Départ à la retraite et rupture conventionnelle collective
+- Faute lourde et intention de nuire
+- Documents de fin de contrat (bulletin de salaire, certificat de travail, attestation employeur, reçu pour solde de tout compte)
 
 ---
 
@@ -52,7 +55,7 @@ Déposez tous les fichiers sur n'importe quel hébergeur statique :
 ├── css/
 │   └── styles.css      # Styles (design dossier d'entreprise)
 ├── js/
-│   ├── enigmas.js      # Données des 6 énigmes et barème
+│   ├── enigmas.js      # Données des énigmes et barème
 │   └── app.js          # Logique du jeu (timer, scoring, validation)
 └── README.md
 ```
@@ -63,22 +66,22 @@ Déposez tous les fichiers sur n'importe quel hébergeur statique :
 
 | Élément | Détail |
 |---------|--------|
-| Durée | 40 minutes |
-| Dossiers | 6 énigmes progressives |
+| Durée | 40 minutes par niveau |
+| Dossiers | Niveau 1 : 7 énigmes / Niveau 2 : 4 missions / Mission finale : 1 mot croisé |
 | Indices | 3 indices disponibles (partagés entre tous les dossiers) |
-| Score max | 900 points |
+| Score max | Niveau 1 : 1300 points / Niveau 2 : 740 points / Mission finale : 300 points |
 | Essais | 2 à 3 par dossier selon difficulté |
 | Pénalités | -15 pts par essai supplémentaire / -20 pts par indice utilisé |
 
 **Mentions :**
-- 🥇 ≥ 80% (720 pts) : Mention Très Bien
-- 🥈 60-79% (540-719 pts) : Mention Bien  
-- 🥉 40-59% (360-539 pts) : Mention Passable
+- 🥇 ≥ 80% (1040 pts) : Mention Très Bien
+- 🥈 60-79% (780-1039 pts) : Mention Bien  
+- 🥉 40-59% (520-779 pts) : Mention Passable
 - 📛 < 40% : Échec
 
 ---
 
-## 📚 Les 6 Dossiers
+## 📚 Niveau 1 — Les 7 Dossiers
 
 | N° | Titre | Notion | Points |
 |----|-------|--------|--------|
@@ -88,6 +91,26 @@ Déposez tous les fichiers sur n'importe quel hébergeur statique :
 | 4 | L'Indemnité Mystère | Calcul des indemnités | 200 pts |
 | 5 | L'Accord Raté | Rupture conventionnelle | 150 pts |
 | 6 | Le Cas Final | Synthèse — Types de rupture | 250 pts |
+| 7 | La Pochette de Sortie | Retraite, faute lourde, rupture collective, documents de fin de contrat | 200 pts |
+
+## 🔓 Niveau 2 — Les 4 Missions Débloquées
+
+| N° | Titre | Notion | Points |
+|----|-------|--------|--------|
+| 1 | Le salarié fantôme | Abandon de poste / présomption de démission | 180 pts |
+| 2 | Télétravail sous tension | Télétravail / droit à la déconnexion | 160 pts |
+| 3 | L'apprenti disparu | Rupture du contrat d'apprentissage | 180 pts |
+| 4 | L'algorithme RH | IA / libertés / droit du travail | 220 pts |
+
+## 🧩 Mission Finale
+
+Une fois les deux niveaux entièrement résolus, une mission finale se débloque :
+
+| Titre | Type | Objectif | Points |
+|-------|------|----------|--------|
+| Le mot croisé du droit social | Mot croisé | Réviser les notions juridiques essentielles du thème | 300 pts |
+
+Un bouton **Glossaire** est disponible en haut à droite pendant le jeu pour revoir les définitions importantes.
 
 ---
 
@@ -97,7 +120,7 @@ Déposez tous les fichiers sur n'importe quel hébergeur statique :
 - **Cases à cocher** (dossier 2) : identification de plusieurs erreurs
 - **Remise en ordre** (dossier 3) : glisser-déposer pour ordonner des étapes
 - **Texte à compléter** (dossier 4) : calcul numérique guidé
-- **Association** (dossiers 5 & 6) : relier problèmes ↔ conséquences juridiques
+- **Association** (dossiers 5, 6 & 7) : relier problèmes ↔ conséquences juridiques
 
 ---
 

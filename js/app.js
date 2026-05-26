@@ -4,19 +4,23 @@ const GAME_DURATION = 40 * 60; // 40 minutes en secondes
 
 const state = {
   teamName: '',
+  levelIndex: 0,
   timerInterval: null,
   timeLeft: GAME_DURATION,
   currentEnigma: 0,
-  solved: Array(6).fill(false),
-  scores: Array(6).fill(0),
-  hints: Array(6).fill(false),
+  solved: [],
+  scores: [],
+  hints: [],
   hintsUsed: 0,
   hintsMax: 3,
-  attempts: Array(6).fill(0),
+  attempts: [],
   dragSrc: null,
   matchSel: { gauche: null, droite: null },
-  matchedPairsByEnigma: Array(6).fill(null).map(() => []),
-  validated: Array(6).fill(false),
+  matchedPairsByEnigma: [],
+  validated: [],
+  exhausted: [],
+  stepResults: [],
+  stepAttempts: [],
   startTime: null,
 };
 
@@ -35,6 +39,60 @@ function showScreen(id) {
   $(id).classList.add('active');
 }
 
+function getCurrentLevel() {
+  return LEVELS[state.levelIndex];
+}
+
+function getCurrentEnigmas() {
+  return getCurrentLevel().enigmas;
+}
+
+function getEnigmaCount() {
+  return getCurrentEnigmas().length;
+}
+
+function getMaxPoints() {
+  return getCurrentEnigmas().reduce((total, enigma) => total + enigma.points, 0);
+}
+
+function renderStaticScoreLabels() {
+  const maxPts = getMaxPoints();
+  const objective = Math.ceil((maxPts * 0.6) / 10) * 10;
+  const statMax = $('stat-max-points');
+  const progressObjective = $('progress-objective');
+  const resultsMax = $('results-score-max');
+  if (statMax) statMax.textContent = maxPts;
+  if (progressObjective) progressObjective.textContent = `Objectif : ${objective}+ pts`;
+  if (resultsMax) resultsMax.textContent = `/ ${maxPts} pts`;
+}
+
+function normalizeAnswer(value) {
+  return value
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z]/g, '');
+}
+
+function resetLevelState() {
+  const count = getEnigmaCount();
+  state.timeLeft = GAME_DURATION;
+  state.currentEnigma = 0;
+  state.solved = Array(count).fill(false);
+  state.scores = Array(count).fill(0);
+  state.hints = Array(count).fill(false);
+  state.hintsUsed = 0;
+  state.attempts = Array(count).fill(0);
+  state.validated = Array(count).fill(false);
+  state.matchSel = { gauche: null, droite: null };
+  state.matchedPairsByEnigma = Array(count).fill(null).map(() => []);
+  state.exhausted = Array(count).fill(false);
+  state.stepResults = Array(count).fill(null).map(() => []);
+  state.stepAttempts = Array(count).fill(null).map(() => []);
+  state.startTime = Date.now();
+}
+
 /* ===== WELCOME ===== */
 $('btn-start').addEventListener('click', () => {
   const nameInput = $('team-name');
@@ -49,20 +107,13 @@ $('team-name').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-
 
 /* ===== START GAME ===== */
 function startGame() {
-  state.timeLeft = GAME_DURATION;
-  state.currentEnigma = 0;
-  state.solved = Array(6).fill(false);
-  state.scores = Array(6).fill(0);
-  state.hints = Array(6).fill(false);
-  state.hintsUsed = 0;
-  state.attempts = Array(6).fill(0);
-  state.validated = Array(6).fill(false);
-  state.matchSel = { gauche: null, droite: null };
-  state.matchedPairsByEnigma = Array(6).fill(null).map(() => []);
-  state.startTime = Date.now();
+  state.levelIndex = 0;
+  resetLevelState();
 
   showScreen('screen-game');
+  $('header-level').textContent = getCurrentLevel().label;
   $('header-team').textContent = state.teamName;
+  renderStaticScoreLabels();
   updateScore();
   renderNav();
   loadEnigma(0);
@@ -75,6 +126,7 @@ function startTimer() {
   state.timerInterval = setInterval(() => {
     state.timeLeft--;
     renderTimer();
+    if (state.timeLeft % 60 === 0) saveGame();
     if (state.timeLeft <= 0) {
       clearInterval(state.timerInterval);
       endGame(false);
@@ -103,14 +155,14 @@ function updateScore() {
 function renderNav() {
   const nav = $('enigma-nav');
   nav.innerHTML = '';
-  ENIGMAS.forEach((e, i) => {
+  getCurrentEnigmas().forEach((e, i) => {
     const btn = el('button', 'nav-dossier');
     if (i === state.currentEnigma) btn.classList.add('active');
     if (state.solved[i]) btn.classList.add('solved');
     btn.innerHTML = `<span class="nav-num">Dossier ${i + 1}</span>
       <span class="nav-icon">${e.icon}</span>
       <span class="nav-label">${e.notion}</span>`;
-    btn.addEventListener('click', () => { if (!btn.classList.contains('locked')) loadEnigma(i); });
+    btn.addEventListener('click', () => { if (!btn.classList.contains('locked')) { loadEnigma(i); saveGame(); } });
     nav.appendChild(btn);
   });
 }
@@ -119,28 +171,31 @@ function renderNav() {
 function renderProgress() {
   const container = $('progress-steps');
   container.innerHTML = '';
-  ENIGMAS.forEach((_, i) => {
+  getCurrentEnigmas().forEach((_, i) => {
     const step = el('div', 'progress-step');
     if (state.solved[i]) step.classList.add('done');
     else if (i === state.currentEnigma) step.classList.add('current');
     container.appendChild(step);
   });
   const solved = state.solved.filter(Boolean).length;
-  $('progress-label').textContent = `${solved}/6 dossiers résolus`;
+  $('progress-label').textContent = `${solved}/${getEnigmaCount()} dossiers résolus`;
 }
 
 /* ===== LOAD ENIGMA ===== */
 function loadEnigma(idx) {
   state.currentEnigma = idx;
-  const eng = ENIGMAS[idx];
+  const eng = getCurrentEnigmas()[idx];
   const content = $('enigma-content');
   state.matchSel = { gauche: null, droite: null };
 
-  // Reset complet si l'énigme n'est pas résolue (retour après tentatives épuisées)
-  if (!state.solved[idx]) {
+  // Après épuisement des essais, l'élève peut revenir au dossier et recommencer.
+  if (!state.solved[idx] && state.exhausted[idx]) {
     state.attempts[idx] = 0;
     state.validated[idx] = false;
     state.matchedPairsByEnigma[idx] = [];
+    state.stepResults[idx] = [];
+    state.stepAttempts[idx] = [];
+    state.exhausted[idx] = false;
   }
 
   renderNav();
@@ -181,9 +236,12 @@ function loadEnigma(idx) {
   // Answer zone
   const answer = el('div', 'answer-zone');
   const attemptsLeft = eng.tentativesMax - state.attempts[idx];
+  const attemptsHtml = eng.type === 'multistep'
+    ? `<span class="badge badge-attempts">⚡ ${eng.steps.length} étapes</span>`
+    : `<span class="badge badge-attempts">⚡ ${attemptsLeft} essai(s) restant(s)</span>`;
   answer.innerHTML = `<h4>✏️ Votre réponse
     <span class="attempts-info">
-      <span class="badge badge-attempts">⚡ ${attemptsLeft} essai(s) restant(s)</span>
+      ${attemptsHtml}
       <span class="badge badge-points">🏆 ${eng.points} pts</span>
     </span>
   </h4>`;
@@ -195,6 +253,8 @@ function loadEnigma(idx) {
     case 'ordering': renderOrdering(eng, idx, answer); break;
     case 'fill':   renderFill(eng, idx, answer); break;
     case 'matching': renderMatching(eng, idx, answer); break;
+    case 'crossword': renderCrossword(eng, idx, answer); break;
+    case 'multistep': renderMultistep(eng, idx, answer); break;
   }
   card.appendChild(answer);
 
@@ -207,14 +267,16 @@ function loadEnigma(idx) {
   const actions = el('div', 'action-row');
   const btnVal = el('button', 'btn-validate', '✓ Valider ma réponse');
   btnVal.id = `btn-validate-${idx}`;
-  if (state.validated[idx]) btnVal.disabled = true;
+  if (state.validated[idx] || eng.type === 'multistep') btnVal.disabled = true;
+  if (eng.type === 'multistep') btnVal.style.display = 'none';
   btnVal.addEventListener('click', () => validateEnigma(idx));
 
-  const btnNext = el('button', 'btn-next', idx < 5 ? 'Dossier suivant →' : '🏁 Terminer');
+  const isLast = idx >= getEnigmaCount() - 1;
+  const btnNext = el('button', 'btn-next', isLast ? '🏁 Terminer' : 'Dossier suivant →');
   btnNext.id = `btn-next-${idx}`;
   if (state.validated[idx]) { btnNext.style.display = 'block'; }
   btnNext.addEventListener('click', () => {
-    if (idx < 5) loadEnigma(idx + 1);
+    if (!isLast) loadEnigma(idx + 1);
     else endGame(true);
   });
 
@@ -382,6 +444,66 @@ function renderMatching(eng, idx, container) {
   container.appendChild(wrap);
 }
 
+/* ===== CROSSWORD ===== */
+function buildCrosswordCells(eng) {
+  const cells = new Map();
+  const starts = new Map();
+  eng.words.forEach(word => {
+    const dr = word.dir === 'V' ? 1 : 0;
+    const dc = word.dir === 'H' ? 1 : 0;
+    starts.set(`${word.row}-${word.col}`, word.numero);
+    for (let i = 0; i < word.reponse.length; i++) {
+      const row = word.row + dr * i;
+      const col = word.col + dc * i;
+      cells.set(`${row}-${col}`, word.reponse[i]);
+    }
+  });
+  return { cells, starts };
+}
+
+function renderCrossword(eng, idx, container) {
+  const { cells, starts } = buildCrosswordCells(eng);
+  const wrap = el('div', 'crossword-wrap');
+  const grid = el('div', 'crossword-grid');
+  grid.style.gridTemplateColumns = `repeat(${eng.cols}, minmax(0, 1fr))`;
+
+  for (let row = 0; row < eng.rows; row++) {
+    for (let col = 0; col < eng.cols; col++) {
+      const key = `${row}-${col}`;
+      const cell = el('div', cells.has(key) ? 'crossword-cell' : 'crossword-cell blocked');
+      if (cells.has(key)) {
+        const number = starts.get(key);
+        if (number) cell.appendChild(el('span', 'crossword-num', number));
+        const input = el('input');
+        input.type = 'text';
+        input.maxLength = 1;
+        input.autocomplete = 'off';
+        input.inputMode = 'text';
+        input.id = `cw-${idx}-${row}-${col}`;
+        input.dataset.answer = cells.get(key);
+        input.addEventListener('input', () => {
+          input.value = normalizeAnswer(input.value).slice(0, 1);
+          input.classList.remove('correct', 'wrong');
+        });
+        cell.appendChild(input);
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  const clues = el('div', 'crossword-clues');
+  clues.innerHTML = '<h5>Définitions</h5>';
+  eng.words.forEach(word => {
+    const clue = el('div', 'crossword-clue');
+    clue.innerHTML = `<strong>${word.numero} ${word.dir === 'H' ? 'Horizontal' : 'Vertical'}.</strong> ${word.indice}`;
+    clues.appendChild(clue);
+  });
+
+  wrap.appendChild(grid);
+  wrap.appendChild(clues);
+  container.appendChild(wrap);
+}
+
 function handleMatchClick(item, enigmaIdx, eng) {
   if (state.validated[enigmaIdx]) return;
   const side = item.dataset.side;
@@ -413,10 +535,307 @@ function handleMatchClick(item, enigmaIdx, eng) {
   }
 }
 
+/* ===== MULTISTEP ===== */
+function renderMultistep(eng, idx, container) {
+  if (!state.stepResults[idx] || state.stepResults[idx].length === 0) {
+    state.stepResults[idx] = Array(eng.steps.length).fill(null);
+    state.stepAttempts[idx] = Array(eng.steps.length).fill(0);
+  }
+
+  // Progress dots
+  const bar = el('div', 'ms-bar');
+  eng.steps.forEach((step, si) => {
+    if (si > 0) bar.appendChild(el('div', 'ms-connector'));
+    const dot = el('div', 'ms-dot');
+    const circle = el('div', 'ms-dot-circle', si + 1);
+    const label = el('div', 'ms-dot-label', `Étape ${si + 1}`);
+    const activeStep = getMsActiveStep(idx, eng);
+    if (state.stepResults[idx][si] === true) dot.classList.add('done');
+    else if (si === activeStep) dot.classList.add('active');
+    dot.appendChild(circle);
+    dot.appendChild(label);
+    bar.appendChild(dot);
+  });
+  container.appendChild(bar);
+
+  // Step panels
+  const activeStep = getMsActiveStep(idx, eng);
+  eng.steps.forEach((step, si) => {
+    const stepDiv = el('div', 'ms-step');
+    stepDiv.id = `ms-step-${idx}-${si}`;
+    if (si > activeStep) stepDiv.style.display = 'none';
+
+    stepDiv.appendChild(el('div', 'ms-step-title', step.titre));
+
+    const body = el('div', 'ms-step-body');
+    body.id = `ms-step-body-${idx}-${si}`;
+    if (step.type === 'qcm')      renderMsQCM(step, idx, si, body);
+    else if (step.type === 'ordering') renderMsOrdering(step, idx, si, body);
+    else if (step.type === 'vf')   renderMsVF(step, idx, si, body);
+    stepDiv.appendChild(body);
+
+    const fb = el('div', 'ms-step-feedback');
+    fb.id = `ms-step-fb-${idx}-${si}`;
+    if (state.stepResults[idx][si] === true) {
+      fb.className = 'ms-step-feedback success';
+      fb.textContent = step.feedback.correct;
+    } else if (isMsStepLocked(idx, si, eng)) {
+      fb.className = 'ms-step-feedback error';
+      fb.textContent = step.feedback.incorrect;
+    }
+    stepDiv.appendChild(fb);
+
+    if (state.stepResults[idx][si] !== true && !isMsStepLocked(idx, si, eng)) {
+      const btnVal = el('button', 'btn-step-validate', `✓ Valider l'étape ${si + 1}`);
+      btnVal.id = `ms-btn-val-${idx}-${si}`;
+      btnVal.addEventListener('click', () => validateMsStep(idx, si, eng));
+      stepDiv.appendChild(btnVal);
+    }
+    container.appendChild(stepDiv);
+  });
+}
+
+function getMsActiveStep(enigmaIdx, eng) {
+  for (let i = 0; i < eng.steps.length; i++) {
+    if (state.stepResults[enigmaIdx][i] !== true) return i;
+  }
+  return eng.steps.length;
+}
+
+function isMsStepLocked(enigmaIdx, si, eng) {
+  return state.stepAttempts[enigmaIdx][si] >= eng.tentativesMax
+    && state.stepResults[enigmaIdx][si] !== true;
+}
+
+function renderMsQCM(step, idx, si, container) {
+  const grid = el('div', 'qcm-grid');
+  step.options.forEach((opt, oi) => {
+    const btn = el('div', 'qcm-option');
+    btn.dataset.idx = oi;
+    btn.innerHTML = `<span class="qcm-letter">${String.fromCharCode(65 + oi)}</span><span class="qcm-text">${opt.texte}</span>`;
+    btn.addEventListener('click', () => {
+      if (state.stepResults[idx][si] === true) return;
+      grid.querySelectorAll('.qcm-option').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+    grid.appendChild(btn);
+  });
+  container.appendChild(grid);
+}
+
+function renderMsOrdering(step, idx, si, container) {
+  container.insertAdjacentHTML('beforeend', '<p style="font-size:13px;color:var(--text-light);margin-bottom:10px;">Glissez-déposez les étapes dans le bon ordre :</p>');
+  const list = el('div', 'ordering-list');
+  list.id = `ms-ordering-${idx}-${si}`;
+
+  const shuffled = step.items.map((text, i) => ({ text, origIdx: i }));
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  shuffled.forEach((item, pos) => {
+    const div = el('div', 'ordering-item');
+    div.draggable = true;
+    div.dataset.origIdx = item.origIdx;
+    div.innerHTML = `<span class="order-handle">⠿</span>
+      <span class="order-num">${pos + 1}</span>
+      <span class="order-text">${item.text}</span>`;
+    div.addEventListener('dragstart', e => {
+      state.dragSrc = div;
+      div.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      list.querySelectorAll('.ordering-item').forEach(el => el.classList.remove('correct', 'wrong'));
+    });
+    div.addEventListener('dragend', () => {
+      div.classList.remove('dragging');
+      list.querySelectorAll('.ordering-item').forEach((el, i) => {
+        el.classList.remove('drag-over');
+        el.querySelector('.order-num').textContent = i + 1;
+      });
+    });
+    div.addEventListener('dragover', e => { e.preventDefault(); if (div !== state.dragSrc) div.classList.add('drag-over'); });
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      if (state.dragSrc && div !== state.dragSrc) {
+        const items = [...list.querySelectorAll('.ordering-item')];
+        const srcPos = items.indexOf(state.dragSrc);
+        const dstPos = items.indexOf(div);
+        if (srcPos < dstPos) list.insertBefore(state.dragSrc, div.nextSibling);
+        else list.insertBefore(state.dragSrc, div);
+      }
+    });
+    list.appendChild(div);
+  });
+  container.appendChild(list);
+}
+
+function renderMsVF(step, idx, si, container) {
+  step.questions.forEach((q, qi) => {
+    const row = el('div', 'vf-question');
+    row.id = `vf-q-${idx}-${si}-${qi}`;
+    const text = el('div', 'vf-q-text', q.texte);
+    const opts = el('div', 'vf-opts');
+    ['VRAI', 'FAUX'].forEach(label => {
+      const btn = el('button', 'btn-vf', label);
+      btn.dataset.val = label === 'VRAI' ? 'true' : 'false';
+      btn.addEventListener('click', () => {
+        if (state.stepResults[idx][si] === true) return;
+        opts.querySelectorAll('.btn-vf').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+      opts.appendChild(btn);
+    });
+    row.appendChild(text);
+    row.appendChild(opts);
+    container.appendChild(row);
+  });
+}
+
+function validateMsStep(enigmaIdx, si, eng) {
+  const step = eng.steps[si];
+  state.stepAttempts[enigmaIdx][si]++;
+  const isLast = state.stepAttempts[enigmaIdx][si] >= eng.tentativesMax;
+  let correct = false;
+
+  if (step.type === 'qcm') {
+    const grid = document.querySelector(`#ms-step-body-${enigmaIdx}-${si} .qcm-grid`);
+    const selected = grid?.querySelector('.qcm-option.selected');
+    if (!selected) {
+      state.stepAttempts[enigmaIdx][si]--;
+      showMsStepMsg(enigmaIdx, si, 'Sélectionnez une réponse avant de valider.', false);
+      return;
+    }
+    const choice = parseInt(selected.dataset.idx);
+    correct = choice === step.reponse;
+    grid.querySelectorAll('.qcm-option').forEach((opt, i) => {
+      if (i === step.reponse) opt.classList.add('correct');
+      else if (i === choice && !correct) opt.classList.add('wrong');
+    });
+
+  } else if (step.type === 'ordering') {
+    const list = $(`ms-ordering-${enigmaIdx}-${si}`);
+    if (!list) return;
+    const items = [...list.querySelectorAll('.ordering-item')];
+    const userOrder = items.map(el => parseInt(el.dataset.origIdx));
+    correct = JSON.stringify(userOrder) === JSON.stringify(step.ordre);
+    items.forEach((item, pos) => {
+      item.classList.remove('correct', 'wrong');
+      if (step.ordre[pos] === parseInt(item.dataset.origIdx)) item.classList.add('correct');
+      else item.classList.add('wrong');
+      if (correct || isLast) item.draggable = false;
+    });
+
+  } else if (step.type === 'vf') {
+    const body = $(`ms-step-body-${enigmaIdx}-${si}`);
+    const vfResults = step.questions.map((q, qi) => {
+      const opts = body?.querySelector(`#vf-q-${enigmaIdx}-${si}-${qi} .vf-opts`);
+      const selected = opts?.querySelector('.btn-vf.selected');
+      if (!selected) return null;
+      return { q, opts, isCorrect: selected.dataset.val === String(q.reponse) };
+    });
+    if (vfResults.some(r => r === null)) {
+      state.stepAttempts[enigmaIdx][si]--;
+      showMsStepMsg(enigmaIdx, si, 'Répondez à toutes les questions avant de valider.', false);
+      return;
+    }
+    correct = vfResults.every(r => r.isCorrect);
+    vfResults.forEach(({ q, opts, isCorrect }) => {
+      opts.querySelectorAll('.btn-vf').forEach(btn => {
+        const bval = btn.dataset.val === 'true';
+        if (bval === q.reponse) btn.classList.add('correct');
+        else if (btn.classList.contains('selected') && !isCorrect) btn.classList.add('wrong');
+        if (correct || isLast) btn.disabled = true;
+      });
+    });
+    // Non-final wrong attempt: reset all VF buttons after a brief delay for retry
+    if (!correct && !isLast) {
+      setTimeout(() => {
+        const b2 = $(`ms-step-body-${enigmaIdx}-${si}`);
+        if (b2) b2.querySelectorAll('.btn-vf').forEach(btn => {
+          btn.classList.remove('correct', 'wrong', 'selected');
+        });
+      }, 1200);
+    }
+  }
+
+  const fb = $(`ms-step-fb-${enigmaIdx}-${si}`);
+  if (correct) {
+    state.stepResults[enigmaIdx][si] = true;
+    if (fb) { fb.className = 'ms-step-feedback success'; fb.textContent = step.feedback.correct; }
+    const btnVal = $(`ms-btn-val-${enigmaIdx}-${si}`);
+    if (btnVal) btnVal.style.display = 'none';
+    setMsDotState(enigmaIdx, si, 'done');
+
+    if (state.stepResults[enigmaIdx].every(r => r === true)) {
+      completeMultistep(enigmaIdx, eng);
+    } else {
+      const nextSi = si + 1;
+      const nextStep = $(`ms-step-${enigmaIdx}-${nextSi}`);
+      if (nextStep) {
+        nextStep.style.display = 'block';
+        setMsDotState(enigmaIdx, nextSi, 'active');
+      }
+    }
+  } else {
+    const left = eng.tentativesMax - state.stepAttempts[enigmaIdx][si];
+    if (left <= 0) {
+      state.stepResults[enigmaIdx][si] = false;
+      if (fb) { fb.className = 'ms-step-feedback error'; fb.textContent = step.feedback.incorrect; }
+      const btnVal = $(`ms-btn-val-${enigmaIdx}-${si}`);
+      if (btnVal) btnVal.disabled = true;
+      setMsDotState(enigmaIdx, si, 'failed');
+      state.exhausted[enigmaIdx] = true;
+      showFeedback(enigmaIdx, false, eng, 0, true);
+      showNextBtn(enigmaIdx);
+    } else {
+      if (fb) { fb.className = 'ms-step-feedback error'; fb.textContent = `⚠️ Incorrect — ${left} essai(s) restant(s)`; }
+    }
+  }
+}
+
+function setMsDotState(enigmaIdx, si, dotState) {
+  const bar = document.querySelector('#enigma-content .ms-bar');
+  if (!bar) return;
+  const dots = bar.querySelectorAll('.ms-dot');
+  if (dots[si]) {
+    dots[si].classList.remove('active', 'done', 'failed');
+    dots[si].classList.add(dotState);
+  }
+}
+
+function showMsStepMsg(enigmaIdx, si, msg, success) {
+  const fb = $(`ms-step-fb-${enigmaIdx}-${si}`);
+  if (!fb) return;
+  fb.className = `ms-step-feedback ${success ? 'success' : 'error'}`;
+  fb.textContent = msg;
+}
+
+function completeMultistep(enigmaIdx, eng) {
+  const totalAttempts = state.stepAttempts[enigmaIdx].reduce((a, b) => a + b, 0);
+  const extraAttempts = Math.max(0, totalAttempts - eng.steps.length);
+  let pts = eng.points - extraAttempts * SCORING.malusEssai;
+  if (state.hints[enigmaIdx]) pts -= SCORING.malusIndice;
+  pts = Math.max(pts, Math.floor(eng.points * 0.3));
+
+  state.scores[enigmaIdx] = pts;
+  state.solved[enigmaIdx] = true;
+  state.validated[enigmaIdx] = true;
+  state.exhausted[enigmaIdx] = false;
+  updateScore();
+  renderNav();
+  renderProgress();
+  saveGame();
+  showFeedback(enigmaIdx, true, eng, pts);
+  showNextBtn(enigmaIdx);
+  showUnlock(eng, enigmaIdx, pts);
+}
+
 /* ===== VALIDATE ===== */
 function validateEnigma(idx) {
   if (state.validated[idx]) return;
-  const eng = ENIGMAS[idx];
+  const eng = getCurrentEnigmas()[idx];
   state.attempts[idx]++;
 
   let isCorrect = false;
@@ -426,6 +845,12 @@ function validateEnigma(idx) {
     case 'ordering': isCorrect = validateOrdering(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'fill':   isCorrect = validateFill(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
     case 'matching': isCorrect = validateMatching(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
+    case 'crossword': isCorrect = validateCrossword(eng, idx, state.attempts[idx] >= eng.tentativesMax); break;
+  }
+
+  if (isCorrect === null) {
+    state.attempts[idx]--;
+    return;
   }
 
   if (isCorrect) {
@@ -437,7 +862,11 @@ function validateEnigma(idx) {
     state.scores[idx] = pts;
     state.solved[idx] = true;
     state.validated[idx] = true;
+    state.exhausted[idx] = false;
     updateScore();
+    renderNav();
+    renderProgress();
+    saveGame();
     showFeedback(idx, true, eng, pts);
     lockValidate(idx);
     showUnlock(eng, idx, pts);
@@ -446,6 +875,7 @@ function validateEnigma(idx) {
     if (left <= 0) {
       // Tentatives épuisées : on montre la correction mais on ne verrouille pas définitivement
       // L'élève peut revenir sur ce dossier et recommencer depuis le début
+      state.exhausted[idx] = true;
       showFeedback(idx, false, eng, 0, true);
       const btn = $(`btn-validate-${idx}`);
       if (btn) btn.disabled = true;
@@ -473,7 +903,10 @@ function showNextBtn(idx) {
 /* ===== VALIDATE QCM ===== */
 function validateQCM(eng, idx) {
   const selected = document.querySelector(`#enigma-content .qcm-option.selected`);
-  if (!selected) return false;
+  if (!selected) {
+    showFeedbackMsg(idx, 'Sélectionnez une réponse avant de valider.', false);
+    return null;
+  }
   const choice = parseInt(selected.dataset.idx);
   const correct = choice === eng.reponse;
   document.querySelectorAll('#enigma-content .qcm-option').forEach((opt, i) => {
@@ -486,6 +919,10 @@ function validateQCM(eng, idx) {
 /* ===== VALIDATE MULTI ===== */
 function validateMulti(eng, idx) {
   const selected = [...document.querySelectorAll('#enigma-content .multi-check.selected')].map(el => parseInt(el.dataset.idx));
+  if (selected.length === 0) {
+    showFeedbackMsg(idx, 'Cochez au moins une proposition avant de valider.', false);
+    return null;
+  }
   selected.sort();
   const expected = [...eng.reponses].sort();
   const correct = JSON.stringify(selected) === JSON.stringify(expected);
@@ -520,6 +957,15 @@ function validateOrdering(eng, idx, lastAttempt) {
 
 /* ===== VALIDATE FILL ===== */
 function validateFill(eng, idx, lastAttempt) {
+  const missing = eng.champs.some((_, i) => {
+    const input = $(`fill-${idx}-${i}`);
+    return input && !input.disabled && !input.value.trim();
+  });
+  if (missing) {
+    showFeedbackMsg(idx, 'Complétez tous les champs avant de valider.', false);
+    return null;
+  }
+
   let allCorrect = true;
   eng.champs.forEach((champ, i) => {
     const input = $(`fill-${idx}-${i}`);
@@ -544,8 +990,7 @@ function validateMatching(eng, idx, lastAttempt) {
   const pairs = state.matchedPairsByEnigma[idx];
   if (pairs.length < eng.gauche.length) {
     showFeedbackMsg(idx, `Associez tous les éléments (${pairs.length}/${eng.gauche.length} fait(s)).`, false);
-    state.attempts[idx]--;
-    return false;
+    return null;
   }
   let allCorrect = true;
   const correctPairs = [];
@@ -580,6 +1025,25 @@ function validateMatching(eng, idx, lastAttempt) {
     }, 1200);
   }
 
+  return allCorrect;
+}
+
+/* ===== VALIDATE CROSSWORD ===== */
+function validateCrossword(eng, idx, lastAttempt) {
+  const inputs = [...document.querySelectorAll(`#enigma-content input[id^="cw-${idx}-"]`)];
+  if (inputs.some(input => !input.value.trim())) {
+    showFeedbackMsg(idx, 'Complétez toutes les cases du mot croisé avant de valider.', false);
+    return null;
+  }
+
+  let allCorrect = true;
+  inputs.forEach(input => {
+    input.classList.remove('correct', 'wrong');
+    const isCorrect = normalizeAnswer(input.value) === input.dataset.answer;
+    input.classList.add(isCorrect ? 'correct' : 'wrong');
+    if (!isCorrect) allCorrect = false;
+    if (isCorrect || lastAttempt) input.disabled = true;
+  });
   return allCorrect;
 }
 
@@ -625,10 +1089,11 @@ $('btn-hint').addEventListener('click', () => {
   state.hintsUsed++;
   const box = $(`hint-box-${idx}`);
   if (box) {
-    box.textContent = `💡 Indice : ${ENIGMAS[idx].indice}`;
+    box.textContent = `💡 Indice : ${getCurrentEnigmas()[idx].indice}`;
     box.classList.add('show');
   }
   updateHintBar();
+  saveGame();
 });
 
 /* ===== UNLOCK ANIMATION ===== */
@@ -637,7 +1102,7 @@ function showUnlock(eng, idx, pts) {
   $('unlock-icon').textContent = '🔓';
   $('unlock-title').textContent = 'Dossier résolu !';
   $('unlock-sub').textContent = eng.titre;
-  $('unlock-score').textContent = `+${pts} points — ${6 - state.solved.filter(Boolean).length} dossier(s) restant(s)`;
+  $('unlock-score').textContent = `+${pts} points — ${getEnigmaCount() - state.solved.filter(Boolean).length} dossier(s) restant(s)`;
   overlay.classList.add('show');
 }
 
@@ -654,7 +1119,8 @@ $('btn-unlock-continue').addEventListener('click', () => {
 
 /* ===== RESTORE VALIDATED STATE ===== */
 function restoreValidatedState(idx) {
-  // Just show next btn — visual restore handled by re-render
+  const eng = getCurrentEnigmas()[idx];
+  showFeedback(idx, true, eng, state.scores[idx]);
   showNextBtn(idx);
 }
 
@@ -665,7 +1131,7 @@ function endGame(completed) {
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
   const total = state.scores.reduce((a, b) => a + b, 0);
-  const maxPts = ENIGMAS.reduce((a, e) => a + e.points, 0);
+  const maxPts = getMaxPoints();
   const pct = Math.round((total / maxPts) * 100);
 
   // Render results
@@ -676,15 +1142,16 @@ function endGame(completed) {
   else { icon = '📛'; titre = 'Dossiers non maîtrisés'; mention = '❌ Échec — L\'entreprise risque de lourdes sanctions !'; }
 
   $('results-icon').textContent = icon;
-  $('results-title').textContent = titre;
-  $('results-sub').textContent = completed ? `Tous les dossiers traités` : `Temps écoulé — ${state.solved.filter(Boolean).length}/6 dossiers résolus`;
+  $('results-title').textContent = completed ? getCurrentLevel().resultTitle : titre;
+  $('results-sub').textContent = completed ? `Tous les dossiers du ${getCurrentLevel().label.toLowerCase()} sont traités` : `Temps écoulé — ${state.solved.filter(Boolean).length}/${getEnigmaCount()} dossiers résolus`;
   $('results-score-val').textContent = total;
+  $('results-score-max').textContent = `/ ${maxPts} pts`;
   $('results-time').textContent = `Temps utilisé : ${mins}m ${secs.toString().padStart(2,'0')}s`;
   $('results-mention').textContent = mention;
 
   const breakdown = $('results-breakdown');
   breakdown.innerHTML = '<h3>Détail par dossier</h3>';
-  ENIGMAS.forEach((eng, i) => {
+  getCurrentEnigmas().forEach((eng, i) => {
     const row = el('div', 'result-row');
     row.innerHTML = `<span class="result-status">${state.solved[i] ? '✅' : '❌'}</span>
       <span class="result-name">${eng.titre}</span>
@@ -693,11 +1160,167 @@ function endGame(completed) {
   });
 
   showScreen('screen-results');
+  const nextLevelBtn = $('btn-next-level');
+  if (nextLevelBtn) {
+    const nextLevel = LEVELS[state.levelIndex + 1];
+    const allSolved = state.solved.every(Boolean);
+    nextLevelBtn.style.display = completed && allSolved && nextLevel ? 'block' : 'none';
+    if (nextLevel) {
+      nextLevelBtn.textContent = nextLevel.label === 'Mission finale' ? '🧩 Débloquer la mission finale' : `🔓 Débloquer ${nextLevel.label.toLowerCase()}`;
+    }
+  }
 }
 
+$('btn-next-level').addEventListener('click', () => {
+  if (state.levelIndex >= LEVELS.length - 1) return;
+  state.levelIndex++;
+  resetLevelState();
+  showScreen('screen-game');
+  $('header-level').textContent = getCurrentLevel().label;
+  renderStaticScoreLabels();
+  updateScore();
+  renderNav();
+  loadEnigma(0);
+  startTimer();
+  saveGame();
+});
+
 $('btn-restart').addEventListener('click', () => {
+  clearSave();
+  document.querySelector('.resume-box')?.remove();
+  state.levelIndex = 0;
+  renderStaticScoreLabels();
   showScreen('screen-welcome');
 });
 
+/* ===== GLOSSARY ===== */
+function renderGlossary() {
+  const list = $('glossary-list');
+  if (!list) return;
+  list.innerHTML = '';
+  GLOSSARY.forEach(item => {
+    const entry = el('div', 'glossary-entry');
+    entry.innerHTML = `<h4>${item.terme}</h4><p>${item.definition}</p>`;
+    list.appendChild(entry);
+  });
+}
+
+$('btn-glossary').addEventListener('click', () => {
+  renderGlossary();
+  $('glossary-modal').classList.add('show');
+});
+
+$('btn-glossary-close').addEventListener('click', () => {
+  $('glossary-modal').classList.remove('show');
+});
+
+$('glossary-modal').addEventListener('click', event => {
+  if (event.target === $('glossary-modal')) {
+    $('glossary-modal').classList.remove('show');
+  }
+});
+
+/* ===== SAVE / RESUME ===== */
+const SAVE_KEY = 'escapeRoom_v1_save';
+
+function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      v: 1,
+      teamName: state.teamName,
+      levelIndex: state.levelIndex,
+      timeLeft: state.timeLeft,
+      currentEnigma: state.currentEnigma,
+      solved: state.solved,
+      scores: state.scores,
+      hints: state.hints,
+      hintsUsed: state.hintsUsed,
+      attempts: state.attempts,
+      validated: state.validated,
+      exhausted: state.exhausted,
+      matchedPairsByEnigma: state.matchedPairsByEnigma,
+      stepResults: state.stepResults,
+      stepAttempts: state.stepAttempts,
+      savedAt: Date.now(),
+    }));
+  } catch (e) { /* quota */ }
+}
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const save = JSON.parse(raw);
+    if (save.v !== 1 || !LEVELS[save.levelIndex]) return null;
+    return save;
+  } catch (e) { return null; }
+}
+
+function clearSave() {
+  localStorage.removeItem(SAVE_KEY);
+}
+
+function resumeGame(save) {
+  state.teamName    = save.teamName;
+  state.levelIndex  = save.levelIndex;
+  state.timeLeft    = save.timeLeft;
+  state.currentEnigma = save.currentEnigma;
+  state.solved      = save.solved;
+  state.scores      = save.scores;
+  state.hints       = save.hints;
+  state.hintsUsed   = save.hintsUsed;
+  state.attempts    = save.attempts;
+  state.validated   = save.validated;
+  state.exhausted   = save.exhausted;
+  state.matchedPairsByEnigma = save.matchedPairsByEnigma;
+  state.stepResults  = save.stepResults  || state.solved.map(() => []);
+  state.stepAttempts = save.stepAttempts || state.solved.map(() => []);
+  state.startTime   = Date.now();
+
+  showScreen('screen-game');
+  $('header-level').textContent = getCurrentLevel().label;
+  $('header-team').textContent = state.teamName;
+  renderStaticScoreLabels();
+  updateScore();
+  renderNav();
+  renderProgress();
+  loadEnigma(state.currentEnigma);
+  startTimer();
+}
+
+function checkSavedGame() {
+  const save = loadSave();
+  if (!save) return;
+  const level = LEVELS[save.levelIndex];
+  const solved = save.solved.filter(Boolean).length;
+  const total = level.enigmas.length;
+  const mins = Math.floor(save.timeLeft / 60);
+  const secs = (save.timeLeft % 60).toString().padStart(2, '0');
+  const pts = save.scores.reduce((a, b) => a + b, 0);
+
+  const box = el('div', 'resume-box');
+  box.innerHTML = `
+    <div class="resume-header">💾 Partie sauvegardée</div>
+    <div class="resume-details">
+      <span>Équipe : <strong>${save.teamName}</strong></span>
+      <span>${level.label}</span>
+      <span>${solved}/${total} dossiers résolus</span>
+      <span>⏱ ${mins}min ${secs}s restantes</span>
+      <span>${pts} pts</span>
+    </div>
+    <div class="resume-actions">
+      <button class="btn-resume" id="btn-resume">▶ Reprendre la partie</button>
+      <button class="btn-clear-save" id="btn-clear-save">✕ Effacer</button>
+    </div>`;
+
+  const teamSetup = document.querySelector('.team-setup');
+  teamSetup.parentNode.insertBefore(box, teamSetup);
+
+  $('btn-resume').addEventListener('click', () => resumeGame(save));
+  $('btn-clear-save').addEventListener('click', () => { clearSave(); box.remove(); });
+}
+
 /* ===== INIT ===== */
+renderStaticScoreLabels();
 renderProgress();
+checkSavedGame();
