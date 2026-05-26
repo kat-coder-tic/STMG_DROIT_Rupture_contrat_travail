@@ -864,6 +864,66 @@ body {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
+/* ===== SAVE / RESUME ===== */
+.resume-box {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  text-align: left;
+  animation: fadeIn 0.4s ease;
+}
+
+.resume-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.65);
+  margin-bottom: 8px;
+}
+
+.resume-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 14px;
+}
+
+.resume-details strong { color: white; }
+
+.resume-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.btn-resume {
+  padding: 10px 22px;
+  background: white;
+  color: var(--primary);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.btn-resume:hover { opacity: 0.92; transform: translateY(-1px); }
+
+.btn-clear-save {
+  padding: 10px 16px;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.btn-clear-save:hover { color: white; border-color: rgba(255,255,255,0.6); }
+
+@media (max-width: 480px) { .resume-details { flex-direction: column; gap: 2px; } }
+
 /* ===== MULTISTEP ===== */
 .ms-bar {
   display: flex;

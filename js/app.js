@@ -126,6 +126,7 @@ function startTimer() {
   state.timerInterval = setInterval(() => {
     state.timeLeft--;
     renderTimer();
+    if (state.timeLeft % 60 === 0) saveGame();
     if (state.timeLeft <= 0) {
       clearInterval(state.timerInterval);
       endGame(false);
@@ -161,7 +162,7 @@ function renderNav() {
     btn.innerHTML = `<span class="nav-num">Dossier ${i + 1}</span>
       <span class="nav-icon">${e.icon}</span>
       <span class="nav-label">${e.notion}</span>`;
-    btn.addEventListener('click', () => { if (!btn.classList.contains('locked')) loadEnigma(i); });
+    btn.addEventListener('click', () => { if (!btn.classList.contains('locked')) { loadEnigma(i); saveGame(); } });
     nav.appendChild(btn);
   });
 }
@@ -816,6 +817,7 @@ function completeMultistep(enigmaIdx, eng) {
   updateScore();
   renderNav();
   renderProgress();
+  saveGame();
   showFeedback(enigmaIdx, true, eng, pts);
   showNextBtn(enigmaIdx);
   showUnlock(eng, enigmaIdx, pts);
@@ -855,6 +857,7 @@ function validateEnigma(idx) {
     updateScore();
     renderNav();
     renderProgress();
+    saveGame();
     showFeedback(idx, true, eng, pts);
     lockValidate(idx);
     showUnlock(eng, idx, pts);
@@ -1081,6 +1084,7 @@ $('btn-hint').addEventListener('click', () => {
     box.classList.add('show');
   }
   updateHintBar();
+  saveGame();
 });
 
 /* ===== UNLOCK ANIMATION ===== */
@@ -1169,9 +1173,12 @@ $('btn-next-level').addEventListener('click', () => {
   renderNav();
   loadEnigma(0);
   startTimer();
+  saveGame();
 });
 
 $('btn-restart').addEventListener('click', () => {
+  clearSave();
+  document.querySelector('.resume-box')?.remove();
   state.levelIndex = 0;
   renderStaticScoreLabels();
   showScreen('screen-welcome');
@@ -1204,6 +1211,107 @@ $('glossary-modal').addEventListener('click', event => {
   }
 });
 
+/* ===== SAVE / RESUME ===== */
+const SAVE_KEY = 'escapeRoom_v1_save';
+
+function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      v: 1,
+      teamName: state.teamName,
+      levelIndex: state.levelIndex,
+      timeLeft: state.timeLeft,
+      currentEnigma: state.currentEnigma,
+      solved: state.solved,
+      scores: state.scores,
+      hints: state.hints,
+      hintsUsed: state.hintsUsed,
+      attempts: state.attempts,
+      validated: state.validated,
+      exhausted: state.exhausted,
+      matchedPairsByEnigma: state.matchedPairsByEnigma,
+      stepResults: state.stepResults,
+      stepAttempts: state.stepAttempts,
+      savedAt: Date.now(),
+    }));
+  } catch (e) { /* quota */ }
+}
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const save = JSON.parse(raw);
+    if (save.v !== 1 || !LEVELS[save.levelIndex]) return null;
+    return save;
+  } catch (e) { return null; }
+}
+
+function clearSave() {
+  localStorage.removeItem(SAVE_KEY);
+}
+
+function resumeGame(save) {
+  state.teamName    = save.teamName;
+  state.levelIndex  = save.levelIndex;
+  state.timeLeft    = save.timeLeft;
+  state.currentEnigma = save.currentEnigma;
+  state.solved      = save.solved;
+  state.scores      = save.scores;
+  state.hints       = save.hints;
+  state.hintsUsed   = save.hintsUsed;
+  state.attempts    = save.attempts;
+  state.validated   = save.validated;
+  state.exhausted   = save.exhausted;
+  state.matchedPairsByEnigma = save.matchedPairsByEnigma;
+  state.stepResults  = save.stepResults  || state.solved.map(() => []);
+  state.stepAttempts = save.stepAttempts || state.solved.map(() => []);
+  state.startTime   = Date.now();
+
+  showScreen('screen-game');
+  $('header-level').textContent = getCurrentLevel().label;
+  $('header-team').textContent = state.teamName;
+  renderStaticScoreLabels();
+  updateScore();
+  renderNav();
+  renderProgress();
+  loadEnigma(state.currentEnigma);
+  startTimer();
+}
+
+function checkSavedGame() {
+  const save = loadSave();
+  if (!save) return;
+  const level = LEVELS[save.levelIndex];
+  const solved = save.solved.filter(Boolean).length;
+  const total = level.enigmas.length;
+  const mins = Math.floor(save.timeLeft / 60);
+  const secs = (save.timeLeft % 60).toString().padStart(2, '0');
+  const pts = save.scores.reduce((a, b) => a + b, 0);
+
+  const box = el('div', 'resume-box');
+  box.innerHTML = `
+    <div class="resume-header">💾 Partie sauvegardée</div>
+    <div class="resume-details">
+      <span>Équipe : <strong>${save.teamName}</strong></span>
+      <span>${level.label}</span>
+      <span>${solved}/${total} dossiers résolus</span>
+      <span>⏱ ${mins}min ${secs}s restantes</span>
+      <span>${pts} pts</span>
+    </div>
+    <div class="resume-actions">
+      <button class="btn-resume" id="btn-resume">▶ Reprendre la partie</button>
+      <button class="btn-clear-save" id="btn-clear-save">✕ Effacer</button>
+    </div>`;
+
+  const teamSetup = document.querySelector('.team-setup');
+  teamSetup.parentNode.insertBefore(box, teamSetup);
+
+  $('btn-resume').addEventListener('click', () => resumeGame(save));
+  $('btn-clear-save').addEventListener('click', () => { clearSave(); box.remove(); });
+}
+
 /* ===== INIT ===== */
 renderStaticScoreLabels();
 renderProgress();
+checkSavedGame();
