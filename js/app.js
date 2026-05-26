@@ -749,6 +749,15 @@ function validateMsStep(enigmaIdx, si, eng) {
         if (correct || isLast) btn.disabled = true;
       });
     });
+    // Non-final wrong attempt: reset all VF buttons after a brief delay for retry
+    if (!correct && !isLast) {
+      setTimeout(() => {
+        const b2 = $(`ms-step-body-${enigmaIdx}-${si}`);
+        if (b2) b2.querySelectorAll('.btn-vf').forEach(btn => {
+          btn.classList.remove('correct', 'wrong', 'selected');
+        });
+      }, 1200);
+    }
   }
 
   const fb = $(`ms-step-fb-${enigmaIdx}-${si}`);
