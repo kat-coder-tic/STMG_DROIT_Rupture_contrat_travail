@@ -584,7 +584,7 @@ function renderMultistep(eng, idx, container) {
     }
     stepDiv.appendChild(fb);
 
-    if (state.stepResults[idx][si] !== true && !isMsStepLocked(idx, si, eng) && si <= activeStep) {
+    if (state.stepResults[idx][si] !== true && !isMsStepLocked(idx, si, eng)) {
       const btnVal = el('button', 'btn-step-validate', `✓ Valider l'étape ${si + 1}`);
       btnVal.id = `ms-btn-val-${idx}-${si}`;
       btnVal.addEventListener('click', () => validateMsStep(idx, si, eng));
